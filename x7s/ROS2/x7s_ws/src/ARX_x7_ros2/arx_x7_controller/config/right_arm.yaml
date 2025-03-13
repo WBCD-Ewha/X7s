@@ -1,0 +1,5 @@
+/right_arm:
+  ros__parameters:
+    arm_can_id: can1
+    urdf_name: x7sRIGHT.urdf
+    arm_type: 1

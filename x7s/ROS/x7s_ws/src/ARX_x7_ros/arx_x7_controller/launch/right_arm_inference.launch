@@ -1,0 +1,9 @@
+<launch>
+    <node pkg="arx_x7_controller" type="x7_controller" name="right_arm" output="screen">
+        <param name="arm_can_id" value="can1"/>
+        <param name="arm_type" value="1"/>
+        <param name="vr" value="false"/>
+        <remap from="/joint_information" to="/joint_information2"/>
+        <remap from="/follow1_pos_back" to="/follow2_pos_back"/>
+    </node>
+</launch>
