@@ -5,9 +5,13 @@
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "lift_controller");
-  ros::NodeHandle nh;
+  ros::NodeHandle nh("~");
   ros::Rate loop_rate(500);
   int type = nh.param("robot_type", 0);
+  if(type == 0)
+  	ROS_INFO("robot_type: lift");
+  else
+  	ROS_INFO("robot_type: x7s");
   LiftHeadControlLoop control_loop(
       "can5", static_cast<LiftHeadControlLoop::RobotType>(type));
   int running_state = 2;
@@ -19,10 +23,10 @@ int main(int argc, char **argv) {
         control_loop.setHeadYaw(msg->head_yaw);
         control_loop.setHeadPitch(-msg->head_pit);
         if (type == 0)
-          control_loop.setChassisCmd(msg->chx * 0.92 / 1.5, -msg->chy * 1.6 / 3,
-                                     msg->chz * 1.8 / 2, msg->mode1);
+          control_loop.setChassisCmd(msg->chx * 1/2.5, -msg->chy * 1/2.5,
+                                     msg->chz * 1/2.5, msg->mode1);
         else
-          control_loop.setChassisCmd(msg->chx * 2 / 2, -msg->chy * 2 / 2, msg->chz * 4 / 2,
+          control_loop.setChassisCmd(msg->chx *1/5, -msg->chy * 1 / 5, msg->chz * 1 / 5,
                                      msg->mode1);
       });
   ros::Time last_callback_time = ros::Time::now();
