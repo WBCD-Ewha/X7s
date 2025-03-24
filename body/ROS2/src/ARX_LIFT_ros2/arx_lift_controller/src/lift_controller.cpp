@@ -1,3 +1,7 @@
+//
+// Created by nuc-ros2 on 24-12-6.
+//
+
 #include <rclcpp/rclcpp.hpp>
 #include <arx_lift_src/lift_head_control_loop.h>
 #include <arm_control/msg/pos_cmd.hpp>
@@ -21,6 +25,7 @@ int main(int argc, char **argv) {
   control_loop = std::make_shared<LiftHeadControlLoop>("can5", static_cast<LiftHeadControlLoop::RobotType>(robot_type));
   int running_state = 2;
   double lift_height = 0;
+  auto pub = node->create_publisher<arm_control::msg::PosCmd>("/body_information", 1);
   auto sub = node->create_subscription<arm_control::msg::PosCmd>("/ARX_VR_L", 1,
                                                                  [&](const arm_control::msg::PosCmd &msg) {
                                                                    control_loop->setHeight(msg.height / 41.54);
@@ -28,14 +33,14 @@ int main(int argc, char **argv) {
                                                                    control_loop->setHeadYaw(msg.head_yaw);
                                                                    control_loop->setHeadPitch(-msg.head_pit);
                                                                    if (robot_type == 0)
-                                                                     control_loop->setChassisCmd(msg.chx * 1/2.5,
-                                                                                                 -msg.chy * 1/2.5,
-                                                                                                 msg.chz * 1/2.5,
+                                                                     control_loop->setChassisCmd(msg.chx / 2.5,
+                                                                                                 -msg.chy / 2.5,
+                                                                                                 msg.chz / 2.5,
                                                                                                  msg.mode1);
                                                                    else
-                                                                     control_loop->setChassisCmd(msg.chx * 1/5,
-                                                                                                 -msg.chy * 1/5,
-                                                                                                 msg.chz * 1/5,
+                                                                     control_loop->setChassisCmd(msg.chx / 3,
+                                                                                                 -msg.chy / 3,
+                                                                                                 msg.chz / 3,
                                                                                                  msg.mode1);
 
                                                                  });
@@ -62,6 +67,12 @@ int main(int argc, char **argv) {
   rclcpp::Rate loop_rate(500);
   while (rclcpp::ok()) {
     control_loop->loop();
+    arm_control::msg::PosCmd msg;
+    msg.head_yaw = control_loop->getHeadYaw();
+    msg.head_pit = control_loop->getHeadPitch();
+    msg.height = control_loop->getHeight();
+    msg.temp_float_data[0] = control_loop->getWaistPos();
+    pub->publish(msg);
     spin_some(node);
     loop_rate.sleep();
   }

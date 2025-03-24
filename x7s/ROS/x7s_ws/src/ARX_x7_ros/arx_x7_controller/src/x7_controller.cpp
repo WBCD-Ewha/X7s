@@ -96,15 +96,15 @@ void X7Controller::pubArmStatus(std::vector<double> joint_pos_vector,
                                 std::vector<double> joint_velocities_vector,
                                 std::vector<double> joint_current_vector,
                                 std::vector<double> xyzrpy) {
-  arx5_arm_msg::RobotStatus msg;
+  arm_control::JointInformation msg;
 
-  for (int i = 0; i < 7; i++) {
+  for (int i = 0; i < 8; i++) {
     msg.joint_pos[i] = joint_pos_vector[i];
   }
-  for (int i = 0; i < 7; i++) {
+  for (int i = 0; i < 8; i++) {
     msg.joint_vel[i] = joint_velocities_vector[i];
   }
-  for (int i = 0; i < 7; i++) {
+  for (int i = 0; i < 8; i++) {
     msg.joint_cur[i] = joint_current_vector[i];
   }
 

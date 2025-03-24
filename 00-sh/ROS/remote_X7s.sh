@@ -17,7 +17,7 @@ gnome-terminal -t "body" -x  bash -c "cd ${workspace}; cd ../..; cd body/ROS; so
 #x7s
 sleep 3
 gnome-terminal -t "L" -x  bash -c "cd ${workspace}; cd ../..; cd x7s/ROS/x7s_ws; source devel/setup.bash && roslaunch arx_x7_controller left_arm.launch; exec bash;"
-sleep 1
+sleep 0.5
 gnome-terminal -t "R" -x  bash -c "cd ${workspace}; cd ../..; cd x7s/ROS/x7s_ws; source devel/setup.bash && roslaunch arx_x7_controller right_arm.launch; exec bash;"
 
 # gnome-terminal -t "pub" -x bash -c "source ~/.bashrc;rosrun joy joy_node;exec bash;"

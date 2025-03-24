@@ -26,6 +26,10 @@ class LiftHeadControlLoop {
   void setHeadYaw(double yaw_des);
   void setHeadPitch(double pitch_des);
   void setChassisCmd(double v_x, double v_y, double w_z, int mode);
+  double getHeight();
+  double getWaistPos();
+  double getHeadYaw();
+  double getHeadPitch();
   void read();
   void update();
   void write();
@@ -40,6 +44,7 @@ class LiftHeadControlLoop {
   double lift_motor_pos_des_{}, waist_motor_pos_des_{}, head_yaw_motor_pos_des_{},
       head_pitch_motor_pos_des_{};
   double lift_pos_current_des_{};
+  double waist_pos_current_des_{};
   double lift_motor_torque_des_{}, lift_motor_vel_des_{};
   bool lift_is_calibrated_ = false, waist_is_calibrated_ = false;
   bool head_initial_pos_flag_ = false;

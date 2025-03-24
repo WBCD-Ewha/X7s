@@ -17,15 +17,24 @@ X7Controller::X7Controller() : Node("x7_controller_node") {
 
   interfaces_ptr_ = std::make_shared<InterfacesThread>(urdf_path, this->declare_parameter("arm_can_id", "can0"),
                                                        type);
-  // 创建发布器
-  joint_state_publisher_ = this->create_publisher<arx5_arm_msg::msg::RobotStatus>("arm_status", 1);
-  vr_joint_state_publisher_ = this->create_publisher<arm_control::msg::PosCmd>("arm_l_status", 10);
   std::string vr_sub_topic;
-  if (type == 0)
+  std::string status_pub_topic;
+  std::string pose_pub_topic;
+  if (type == 0) {
     vr_sub_topic = "ARX_VR_L";
-  else
+    status_pub_topic = "joint_information";
+    pose_pub_topic = "follow1_pos_back";
+  }
+  else {
     vr_sub_topic = "ARX_VR_R";
+    status_pub_topic = "joint_information2";
+    pose_pub_topic = "follow2_pos_back";
+  }
+  // 创建发布器
+  joint_state_publisher_ = this->create_publisher<arx5_arm_msg::msg::RobotStatus>(status_pub_topic, 1);
+  vr_joint_state_publisher_ = this->create_publisher<arm_control::msg::PosCmd>(pose_pub_topic, 10);
   // 创建订阅器
+
   if (vr)
     vr_joint_state_subscriber_ = this->create_subscription<arm_control::msg::PosCmd>(
         vr_sub_topic, 10,
@@ -157,16 +166,16 @@ void X7Controller::VrPubState() {
 
   msg.end_pos = result;
 
-  for (int i = 0; i <= 7; i++) {
-    msg.joint_pos[i] = joint_pos_vector[i];
+  for (int i = 0; i < 8; i++) {
+    msg.joint_pos.push_back(joint_pos_vector[i]);
   }
 
-  for (int i = 0; i <= 7; i++) {
-    msg.joint_vel[i] = joint_velocities_vector[i];
+  for (int i = 0; i < 8; i++) {
+    msg.joint_vel.push_back(joint_velocities_vector[i]);
   }
 
-  for (int i = 0; i < 7; i++) {
-    msg.joint_cur[i] = joint_current_vector[i];
+  for (int i = 0; i < 8; i++) {
+    msg.joint_cur.push_back(joint_current_vector[i]);
   }
   // 发布消息
   joint_state_publisher_->publish(msg);

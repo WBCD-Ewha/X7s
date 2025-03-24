@@ -1,3 +1,7 @@
+//
+// Created by yezi on 24-12-6.
+//
+
 #include <arm_control/PosCmd.h>
 #include <arx_lift_src/lift_head_control_loop.h>
 #include <ros/ros.h>
@@ -8,14 +12,16 @@ int main(int argc, char **argv) {
   ros::NodeHandle nh("~");
   ros::Rate loop_rate(500);
   int type = nh.param("robot_type", 0);
-  if(type == 0)
-  	ROS_INFO("robot_type: lift");
+  if (type == 0)
+    ROS_INFO("robot_type: lift");
   else
-  	ROS_INFO("robot_type: x7s");
+    ROS_INFO("robot_type: x7s");
   LiftHeadControlLoop control_loop(
       "can5", static_cast<LiftHeadControlLoop::RobotType>(type));
   int running_state = 2;
   double lift_height = 0;
+  ros::Publisher pub =
+      nh.advertise<arm_control::PosCmd>("/body_information", 1);
   ros::Subscriber sub = nh.subscribe<arm_control::PosCmd>(
       "/ARX_VR_L", 1, [&](const arm_control::PosCmd::ConstPtr &msg) {
         control_loop.setHeight(msg->height / 41.54);
@@ -23,10 +29,10 @@ int main(int argc, char **argv) {
         control_loop.setHeadYaw(msg->head_yaw);
         control_loop.setHeadPitch(-msg->head_pit);
         if (type == 0)
-          control_loop.setChassisCmd(msg->chx * 1/2.5, -msg->chy * 1/2.5,
-                                     msg->chz * 1/2.5, msg->mode1);
+          control_loop.setChassisCmd(msg->chx / 2.5, -msg->chy / 2.5,
+                                     msg->chz / 2.5, msg->mode1);
         else
-          control_loop.setChassisCmd(msg->chx *1/5, -msg->chy * 1 / 5, msg->chz * 1 / 5,
+          control_loop.setChassisCmd(msg->chx / 3, -msg->chy / 3, msg->chz / 3,
                                      msg->mode1);
       });
   ros::Time last_callback_time = ros::Time::now();
@@ -45,6 +51,12 @@ int main(int argc, char **argv) {
       });
   while (ros::ok()) {
     control_loop.loop();
+    arm_control::PosCmd msg;
+    msg.head_yaw = control_loop.getHeadYaw();
+    msg.head_pit = control_loop.getHeadPitch();
+    msg.height = control_loop.getHeight();
+    msg.tempFloatData[0] = control_loop.getWaistPos();
+    pub.publish(msg);
     ros::spinOnce();
     loop_rate.sleep();
   }
