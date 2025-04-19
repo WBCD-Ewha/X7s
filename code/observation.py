@@ -1,7 +1,6 @@
 import os
 import subprocess
 from pathlib import Path
-import pyrealsense2 as rs
 
 
 def _find_repo_root(start: Path | None = None, anchor: str = "X7s_PLAY") -> Path:
@@ -30,35 +29,6 @@ def _find_repo_root(start: Path | None = None, anchor: str = "X7s_PLAY") -> Path
         f"Could not locate repository root '{anchor}' starting from {start_path}"
     )
 
-def get_intrinsics(serial_num):
-    pipe = rs.pipeline()
-    cfg  = rs.config() # serial number 이용해서 카메라 고르도록 수정
-
-    # Depth 스트림: 카메라가 지원하는 첫번째 프로필을 자동 선택
-    cfg.enable_stream(rs.stream.depth)   # ← 해상도/프레임레이트 미지정
-
-    profile = pipe.start(cfg)
-
-    depth_profile = profile.get_stream(rs.stream.depth)
-    video_profile = depth_profile.as_video_stream_profile()
-    intr          = video_profile.get_intrinsics()
-
-    print({
-        "image_resolution": {
-            "width":  intr.width,
-            "height": intr.height
-        },
-        "focal_lengths_in_pixels": {
-            "fx": intr.fx,
-            "fy": intr.fy
-        },
-        "principal_point_in_pixels": {
-            "cx": intr.ppx,
-            "cy": intr.ppy
-        }
-    })
-    pipe.stop()
-
 def observe(camera_name: str, sample_id: int | str, subtask_num: int | str) -> None:
     """
     Capture a depth image, RGB image, and point cloud from an Intel RealSense camera
@@ -79,7 +49,7 @@ def observe(camera_name: str, sample_id: int | str, subtask_num: int | str) -> N
     x7s_play  = _find_repo_root(anchor= "X7s_PLAY")
     x7s = _find_repo_root(start= x7s_play, anchor= "X7s")
     script_dir  = x7s_play / "realsense_camera" / "src" / "ros_realsense2_camera" / "scripts"
-    obs_dir     = x7s / "datasets" / f"sample_{sample_id}" / f"subtask{subtask_num}" / "observation_start"
+    obs_dir     = x7s / "datasets" / f"sample_{sample_id}" / f"subtask{subtask_num}" / f"{camera_name}"
     obs_dir.mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------
@@ -104,12 +74,13 @@ def observe(camera_name: str, sample_id: int | str, subtask_num: int | str) -> N
     # ------------------------------------------------------------------
     base_cmd = ["python", "rs2_listener.py",
                 "--camera_name", camera_name,
-                "--file_directory", str(obs_dir), "--timeout", "2"]
+                "--file_directory", str(obs_dir), "--timeout", "1"]
 
     cmds = [
         base_cmd[:2] + ["depthStream"]   + base_cmd[2:],
         base_cmd[:2] + ["colorStream"]   + base_cmd[2:],
         base_cmd[:2] + ["pointscloud"]   + base_cmd[2:],
+        base_cmd[:2] + ["cameraInfo"]    + base_cmd[2:],
     ]
 
     # ------------------------------------------------------------------
@@ -124,4 +95,4 @@ def observe(camera_name: str, sample_id: int | str, subtask_num: int | str) -> N
     print(f"✓ Observation saved under: {obs_dir}")
 
 if __name__ == "__main__":
-    observe(camera_name="camera_l", sample_id=0, subtask_num=1)
+    observe(camera_name="camera_h", sample_id=0, subtask_num=1)
