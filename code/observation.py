@@ -1,9 +1,10 @@
 import os
 import subprocess
 from pathlib import Path
+from typing import Optional
+from typing import Union 
 
-
-def _find_repo_root(start: Path | None = None, anchor: str = "X7s_PLAY") -> Path:
+def _find_repo_root(start: Optional[Path] = None, anchor: str = "X7s_PLAY") -> Path:
     """
     Locate the directory named *anchor* anywhere in the ancestor *or sibling*
     hierarchy of *start*.  Raises FileNotFoundError if not found.
@@ -29,7 +30,7 @@ def _find_repo_root(start: Path | None = None, anchor: str = "X7s_PLAY") -> Path
         f"Could not locate repository root '{anchor}' starting from {start_path}"
     )
 
-def observe(camera_name: str, sample_id: int | str, subtask_num: int | str) -> None:
+def observe(camera_name: str, sample_id: Union[int, str], subtask_num: Union[int, str]) -> None:
     """
     Capture a depth image, RGB image, and point cloud from an Intel RealSense camera
     and store them under the dataset directory for the given sample/sub‑task.
