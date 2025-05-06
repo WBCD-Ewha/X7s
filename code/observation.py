@@ -96,4 +96,4 @@ def observe(camera_name: str, sample_id: Union[int, str], subtask_num: Union[int
     print(f"✓ Observation saved under: {obs_dir}")
 
 if __name__ == "__main__":
-    observe(camera_name="camera_h", sample_id=0, subtask_num=1)
+    observe(camera_name="camera_l", sample_id=0, subtask_num=2)
