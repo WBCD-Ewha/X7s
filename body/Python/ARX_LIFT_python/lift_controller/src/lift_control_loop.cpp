@@ -5,8 +5,13 @@
 namespace py = pybind11;
 
 PYBIND11_MODULE(arx_lift_python, m) {
+    py::enum_<arx::LiftHeadControlLoop::RobotType>(m,"RobotType")
+        .value("LIFT",arx::LiftHeadControlLoop::RobotType::LIFT)
+        .value("X7S",arx::LiftHeadControlLoop::RobotType::X7S)
+        .export_values();
+
     py::class_<arx::LiftHeadControlLoop>(m, "LiftHeadControlLoop")
-        .def(py::init<const char *>())
+        .def(py::init<const char *,arx::LiftHeadControlLoop::RobotType>())
         .def("set_height", &arx::LiftHeadControlLoop::setHeight)
         .def("set_waist_pos", &arx::LiftHeadControlLoop::setWaistPos)
         .def("set_head_yaw", &arx::LiftHeadControlLoop::setHeadYaw)
