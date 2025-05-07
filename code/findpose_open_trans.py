@@ -1,5 +1,6 @@
 import open3d as o3d
 import numpy as np
+from extrinsic import apply_extrinsic_to_point, apply_extrinsic_to_pose_matrix
 
 # 1. Load PCD
 pcd = o3d.io.read_point_cloud("container_pt.ply")
@@ -95,3 +96,7 @@ o3d.visualization.draw_geometries([
     pcd, upper_pcd, lid_sphere,
     finger_left, finger_right
 ])
+
+#extrinsic
+left_pose = apply_extrinsic_to_point(left_pose)
+right_pose = apply_extrinsic_to_point(right_pose)

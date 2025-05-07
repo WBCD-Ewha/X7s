@@ -1,12 +1,13 @@
 import numpy as np
 import cv2
 import open3d as o3d
+from extrinsic import apply_extrinsic_to_point, apply_extrinsic_to_pose_matrix
 import argparse
 
 # ---- 파일 경로 ----
 mask_path = '../../Grounded-Segment-Anything/outputs/container_lid.jpg'
-rgb_path = '../datasets/sample_0/subtask1/camera_h/image_left.png'
-depth_path = '../datasets/sample_0/subtask1/camera_h/depth_image_raw16.png'
+rgb_path = '../datasets/sample_0/subtask2/camera_l/image_left.png'
+depth_path = '../datasets/sample_0/subtask2/camera_l/depth_image_raw16.png'
 
 # ---- 카메라 Intrinsic & Extrinsic ----
 depth_K = {'fx': 394.7567, 'fy': 394.7567, 'cx': 321.3488, 'cy': 240.4375}
@@ -15,75 +16,76 @@ R = np.array([[0.9999993, -0.0011171, -0.0002352],
               [0.0011170,  0.9999993, -0.0004513],
               [0.0002357,  0.0004511,  0.9999999]])
 t = np.array([-0.05923, -0.000169, 0.0002484])
-depth_scale = 1000.0  # mm → m
+depth_scale = 1000.0
 
 # ---- 이미지 로딩 ----
 mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-rgb = cv2.imread(rgb_path)
+rgb = cv2.imread(rgb_path)  # BGR
+rgb = cv2.cvtColor(rgb, cv2.COLOR_BGR2RGB)
 depth = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED).astype(np.float32)
 
-# ---- 1. Segmentation에서 손잡이 contour 추출 ----
-contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-contours = sorted(contours, key=cv2.contourArea, reverse=True)[:2]
-
-if len(contours) < 2:
-    raise RuntimeError("손잡이 contour 2개가 필요합니다. 현재: {}".format(len(contours)))
-
-# ---- 2. 손잡이 중심점 추출 ----
-centers = []
-for cnt in contours:
-    M = cv2.moments(cnt)
-    if M['m00'] == 0: continue
-    cx = int(M['m10'] / M['m00'])
-    cy = int(M['m01'] / M['m00'])
-    centers.append((cx, cy))  # Color 이미지 기준 좌표
-
-p1, p2 = np.array(centers[0]), np.array(centers[1])
-grasp_center = ((p1 + p2) / 2).astype(int)
-grasp_dir = p2 - p1
-grasp_dir = grasp_dir / np.linalg.norm(grasp_dir)
-grasp_normal = np.array([-grasp_dir[1], grasp_dir[0]])
-
-# ---- 3. grasp 좌/우 포인트 계산 ----
-offset = 20  # pixel
-left_px = grasp_center + (grasp_normal * offset).astype(int)
-right_px = grasp_center - (grasp_normal * offset).astype(int)
-
-# ---- 4. 픽셀 → Color 카메라 좌표계 3D 포인트 ----
-def pixel_to_3d_color(u, v, depth_img, color_K):
+# ---- 마스크 영역의 픽셀을 3D로 변환 ----
+def pixel_to_3d(u, v, depth_img, K, R, t):
     z = depth_img[v, u] / depth_scale
     if z == 0: return None
-    x = (u - color_K['cx']) * z / color_K['fx']
-    y = (v - color_K['cy']) * z / color_K['fy']
-    return np.array([x, y, z])
+    x = (u - K['cx']) * z / K['fx']
+    y = (v - K['cy']) * z / K['fy']
+    p_d = np.array([x, y, z])
+    p_c = R @ p_d + t  # ← color 카메라 좌표계로 변환
+    return p_c
 
-# ---- 5. Color → Depth 좌표계로 변환 ----
-def transform_color_to_depth(p_c, R, t):
-    return np.linalg.inv(R) @ (p_c - t)
+points_3d = []
+colors = []
+for v in range(mask.shape[0]):
+    for u in range(mask.shape[1]):
+        if mask[v, u] > 0:
+            pt = pixel_to_3d(u, v, depth, depth_K, R, t)
+            if pt is not None:
+                points_3d.append(pt)
+                color = rgb[v, u] / 255.0  # normalize to [0,1]
+                colors.append(color)
 
-# Get 3D points (color frame)
-center_3d_color = pixel_to_3d_color(grasp_center[0], grasp_center[1], depth, color_K)
-left_3d_color = pixel_to_3d_color(left_px[0], left_px[1], depth, color_K)
-right_3d_color = pixel_to_3d_color(right_px[0], right_px[1], depth, color_K)
+points_3d = np.array(points_3d)
+colors = np.array(colors)
 
-if None in [center_3d_color, left_3d_color, right_3d_color]:
-    raise ValueError("Grasp point 중 하나 이상에서 depth 정보가 없습니다.")
+if len(points_3d) < 10:
+    raise RuntimeError("3D 점이 너무 적습니다. 마스크 또는 depth 데이터를 확인하세요.")
 
-# Convert to depth frame (optional, depending on use case)
-center_3d_depth = transform_color_to_depth(center_3d_color, R, t)
-left_3d_depth = transform_color_to_depth(left_3d_color, R, t)
-right_3d_depth = transform_color_to_depth(right_3d_color, R, t)
+# ---- PCA 및 Grasp 계산 (기존과 동일) ----
+center = points_3d.mean(axis=0)
+points_centered = points_3d - center
+_, _, Vt = np.linalg.svd(points_centered, full_matrices=False)
+short_axis = Vt[1]
 
-# ---- 6. 시각화 및 저장 ----
-line = o3d.geometry.LineSet(
-    points=o3d.utility.Vector3dVector([left_3d_depth, right_3d_depth]),
+hinge_offset = 0.06  # meters
+left_grasp = center - short_axis * hinge_offset
+right_grasp = center + short_axis * hinge_offset
+
+# ---- 시각화 ----
+pcd = o3d.geometry.PointCloud()
+pcd.points = o3d.utility.Vector3dVector(points_3d)
+pcd.colors = o3d.utility.Vector3dVector(colors)
+
+grasp_points = o3d.geometry.PointCloud()
+grasp_points.points = o3d.utility.Vector3dVector([center, left_grasp, right_grasp])
+grasp_points.colors = o3d.utility.Vector3dVector([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
+
+grasp_line = o3d.geometry.LineSet(
+    points=o3d.utility.Vector3dVector([left_grasp, right_grasp]),
     lines=o3d.utility.Vector2iVector([[0, 1]])
 )
-line.colors = o3d.utility.Vector3dVector([[1, 0, 0]])
+grasp_line.colors = o3d.utility.Vector3dVector([[1, 0, 0]])
 
-pcd = o3d.geometry.PointCloud()
-pcd.points = o3d.utility.Vector3dVector([center_3d_depth, left_3d_depth, right_3d_depth])
-pcd.colors = o3d.utility.Vector3dVector([[0, 1, 0]] * 3)
+print("Left Grasp Point (red):", left_grasp)
+print("Right Grasp Point (blue):", right_grasp)
 
-# o3d.io.write_point_cloud(output_path, pcd)
-o3d.visualization.draw_geometries([line, pcd])
+np.save("align_left_grasp.npy", left_grasp)
+np.save("align_right_grasp.npy", right_grasp)
+
+o3d.visualization.draw_geometries([pcd, grasp_points, grasp_line])
+
+#extrinsic
+left_pose = apply_extrinsic_to_point(left_grasp)
+right_pose = apply_extrinsic_to_point(right_grasp)
+
+

@@ -1,6 +1,7 @@
 import numpy as np
 import open3d as o3d
 from color3dmapper import ColorTo3DMapper
+from extrinsic import apply_extrinsic_to_point, apply_extrinsic_to_pose_matrix
 
 # 1. 파일 경로
 rgb_path = '../datasets/sample_0/subtask1/camera_h/image_left.png'
@@ -41,3 +42,6 @@ grasp_marker.translate(grasp_point_3d)
 
 # 7. 시각화
 o3d.visualization.draw_geometries([pcd, grasp_marker])
+
+# extrinsic
+grasp_point_3d = apply_extrinsic_to_point(grasp_point_3d)

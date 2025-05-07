@@ -1,7 +1,8 @@
 import numpy as np
 import cv2
 import open3d as o3d
-from color3dmapper import ColorTo3DMapper
+from color3dmapper import ColorTo3DMapperfrom
+from extrinsic import apply_extrinsic_to_point, apply_extrinsic_to_pose_matrix
 
 # 1. Load pixel coordinates
 grasp_point = np.load("grasp_point.npy")  # (x, y)
@@ -68,3 +69,6 @@ entry_sphere.translate(moved_entry_pose)
 
 
 o3d.visualization.draw_geometries([pcd, grasp_frame, entry_sphere], window_name="Grasp Pose in 3D")
+
+#extrinsic
+grasp_pose = apply_extrinsic_to_point(grasp_pose)
