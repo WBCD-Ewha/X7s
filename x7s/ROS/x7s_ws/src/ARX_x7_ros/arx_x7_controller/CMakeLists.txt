@@ -34,6 +34,12 @@ target_include_directories(keyboard PUBLIC lib/arx_hardware_interface/include li
 target_link_libraries(keyboard ${catkin_LIBRARIES} ${CMAKE_CURRENT_SOURCE_DIR}/lib/arx_x7_src/libarx_x7_src.so)
 add_dependencies(keyboard  ${catkin_EXPORTED_TARGETS})
 
+add_executable(x7_controller src/task1_action.cpp)
+target_include_directories(task1_action PUBLIC lib/arx_hardware_interface/include lib/arx_x7_src/include)
+target_link_libraries(task1_action ${catkin_LIBRARIES} ${CMAKE_CURRENT_SOURCE_DIR}/lib/arx_x7_src/libarx_x7_src.so)
+add_dependencies(task1_action  ${catkin_EXPORTED_TARGETS})
+
+
 install(TARGETS
         x7_controller
         DESTINATION lib/${PROJECT_NAME})
