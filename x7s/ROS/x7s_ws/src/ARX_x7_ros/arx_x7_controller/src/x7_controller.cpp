@@ -123,6 +123,31 @@ void X7Controller::pubArmStatus(std::vector<double> joint_pos_vector,
 
   ee_pos_publisher_.publish(msg_pos_cmd);
 }
+
+void X7Controller::setCatch(double pos) {
+  interfaces_ptr_->setCatch(pos);
+}
+
+void X7Controller::setEndPose(const Eigen::Isometry3d& pose) {
+  interfaces_ptr_->setEndPose(pose);
+  interfaces_ptr_->setArmStatus(InterfacesThread::state::END_CONTROL);
+}
+
+void X7Controller::setJointPositions(const std::vector<double>& joint_positions) {
+  interfaces_ptr_->setJointPositions(joint_positions);
+  interfaces_ptr_->setArmStatus(InterfacesThread::state::POSITION_CONTROL);
+}
+
+Eigen::Isometry3d X7Controller::getEndPose() {
+  return interfaces_ptr_->getEndPose();
+}
+
+std::vector<double> X7Controller::getJointCurrent(){
+  return interfaces_ptr_->getJointCurrent()
+}
+
+
+
 } // namespace arx::x7
 
 int main(int argc, char *argv[]) {

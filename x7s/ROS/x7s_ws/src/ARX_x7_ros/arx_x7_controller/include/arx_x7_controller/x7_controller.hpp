@@ -30,6 +30,16 @@ public:
                     std::vector<double> joint_current_vector,
                     std::vector<double> xyzrpy);
 
+void setJointPositions(const std::vector<double>& joint_positions);
+
+std::vector<double> getJointCurrent();
+
+void setEndPose(const Eigen::Isometry3d& pose);
+
+Eigen::Isometry3d getEndPose();
+
+void setCatch(double pos);
+
 private:
   std::shared_ptr<InterfacesThread> interfaces_ptr_;
 

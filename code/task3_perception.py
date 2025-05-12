@@ -95,7 +95,7 @@ def get_pcd_center(pcd: o3d.geometry.PointCloud) -> np.ndarray:
 def find_lid_grasp_pose(pcd, lid_center_3d, hinge_offset):
     # TODO: solve the problem of long and short axis
     points = np.asarray(pcd.points)
-    short_axis, long_axis = pca(points)
+    long_axis, short_axis = pca(points)
 
     # gripper frame
     gripper_y = short_axis / np.linalg.norm(short_axis)
