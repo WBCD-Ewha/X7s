@@ -23,3 +23,10 @@ target_link_libraries(lift_controller
         libarx_lift_src.so
 )
 add_dependencies(lift_controller arm_control_generate_messages_cpp)
+
+add_executable(body_state_publisher src/body_state_publisher.cpp)
+target_link_libraries(body_state_publisher
+        ${catkin_LIBRARIES}
+        libarx_lift_src.so
+)
+add_dependencies(body_state_publisher arm_control_generate_messages_cpp)
