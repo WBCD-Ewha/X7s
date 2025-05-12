@@ -2,4 +2,7 @@
     <node pkg="arx_lift_controller" type="lift_controller" name="x7s" output="screen">
         <param name="robot_type" value="1"/>
     </node>
+
+    <!-- Body TF publisher (no URDF required) -->
+      <node pkg="arx_lift_controller" type="body_state_publisher" name="body_state_publisher" output="screen"/>
 </launch>
