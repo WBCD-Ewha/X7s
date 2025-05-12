@@ -51,6 +51,8 @@
     <buildtool_depend>catkin</buildtool_depend>
     <depend>arm_control</depend>
     <depend>sensor_msgs</depend>
+    <depend>roscpp</depend>
+    <depend>tf</depend>
 
 
     <!-- The export tag contains other, unspecified, tags -->

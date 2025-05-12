@@ -5,10 +5,10 @@ import numpy as np
 def test_single_arm(single_arm: SingleArm, duration: float = 10.0, dt: float = 0.01):
     #single_arm.go_home()
     while(1):
-        position = np.array([0.0, 0.0, 0.1])  # x, y, z 位置
-        quaternion = np.array([1.0, 0.0, 0.0, 0.0])  # 四元数表示方向
+        position = np.array([0.07, 0.087, 0.42])  # x, y, z 位置
+        rpy = np.array([1.0, 0.0, 0.0, 0.0])  # 四元数表示方向
 
-        success = single_arm.set_ee_pose(pos=position, quat=quaternion)
+        success = single_arm.set_ee_pose_xyzrpy([0.07, 0.087, 0.42, -0.003, 0.046, 0.013])
         
         while(1):
             print("testing ...")
@@ -23,7 +23,7 @@ def test_single_arm(single_arm: SingleArm, duration: float = 10.0, dt: float = 0
         
 if __name__ == "__main__":
     arm_config: Dict[str, Any] = {
-        "can_port": "can1",
+        "can_port": "can0",
         "type": 0,
         # Add necessary configuration parameters for the left arm
     }

@@ -8,7 +8,7 @@
 
 namespace arx::x7 {
 X7Controller::X7Controller(ros::NodeHandle nh) {
-  ROS_INFO("机械臂开始初始化...");
+
   int arm_type_ = nh.param("arm_type", 0);
 
   std::string package_path = ros::package::getPath("arx_x7_controller");
@@ -55,6 +55,7 @@ void X7Controller::CmdCallbackV1(const arm_control::PosCmd::ConstPtr &msg) {
   Eigen::Isometry3d transform = solve::Xyzrpy2Isometry(input);
   interfaces_ptr_->setEndPose(transform);
   interfaces_ptr_->setArmStatus(InterfacesThread::state::END_CONTROL);
+  ROS_INFO("Gripper command received: %.3f", msg->gripper);
   interfaces_ptr_->setCatch(msg->gripper);
 }
 
@@ -86,7 +87,7 @@ void X7Controller::PubState(const ros::TimerEvent &) {
   std::vector<double> joint_current_vector = interfaces_ptr_->getJointCurrent();
 
   // 发布消息
-  ROS_INFO("Publishing RobotStatus message");
+
 
   pubArmStatus(joint_pos_vector, joint_velocities_vector, joint_current_vector,
                xyzrpy);
@@ -143,7 +144,7 @@ Eigen::Isometry3d X7Controller::getEndPose() {
 }
 
 std::vector<double> X7Controller::getJointCurrent(){
-  return interfaces_ptr_->getJointCurrent()
+  return interfaces_ptr_->getJointCurrent();
 }
 
 

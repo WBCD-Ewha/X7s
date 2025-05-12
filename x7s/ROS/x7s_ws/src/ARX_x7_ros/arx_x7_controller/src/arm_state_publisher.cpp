@@ -19,10 +19,10 @@ public:
     std::string package_path = ros::package::getPath("arx_x7_controller");
     if (arm_type == 0) {
       urdf_path_ = package_path + "/X7Sleft1.urdf";
-      joint_info_topic_ = "/joint_control/joint_information";
+      joint_info_topic_ = "/joint_information";
     } else {
       urdf_path_ = package_path + "/x7sRIGHT.urdf";
-      joint_info_topic_ = "/joint_control2/joint_information";
+      joint_info_topic_ = "/joint_information";
     }
 
     // Load URDF model
@@ -43,24 +43,30 @@ public:
     joint_info_sub_ = nh_.subscribe(joint_info_topic_, 10, &ArmTfPublisher::jointInfoCallback, this);
   }
 
-  void jointInfoCallback(const arm_control::JointInformation::ConstPtr& msg) {
+void jointInfoCallback(const arm_control::JointInformation::ConstPtr& msg) {
     ros::Time now = ros::Time::now();
 
     sensor_msgs::JointState joint_state_msg;
     joint_state_msg.header.stamp = now;
 
-    for (size_t i = 0; i < msg->joint_pos.size(); ++i) {
-      joint_state_msg.name.push_back("joint_" + std::to_string(i + 1));  // Adjust if actual names differ
-      joint_state_msg.position.push_back(msg->joint_pos[i]);
+    static const std::vector<std::string> joint_names = {
+        "joint1", "joint2", "joint3", "joint4",
+        "joint5", "joint6", "joint7", "joint8"
+    };
+
+    for (size_t i = 0; i < joint_names.size() && i < msg->joint_pos.size(); ++i) {
+        joint_state_msg.name.push_back(joint_names[i]);
+        joint_state_msg.position.push_back(msg->joint_pos[i]);
     }
 
     std::map<std::string, double> joint_positions;
     for (size_t i = 0; i < joint_state_msg.name.size(); ++i) {
-      joint_positions[joint_state_msg.name[i]] = joint_state_msg.position[i];
+        joint_positions[joint_state_msg.name[i]] = joint_state_msg.position[i];
     }
 
     rsp_->publishTransforms(joint_positions, now);
-  }
+}
+
 
 private:
   ros::NodeHandle nh_;

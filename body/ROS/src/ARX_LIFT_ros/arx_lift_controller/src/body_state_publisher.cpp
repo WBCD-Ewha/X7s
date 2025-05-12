@@ -48,7 +48,7 @@ private:
 int main(int argc, char** argv) {
   ros::init(argc, argv, "body_state_publisher");
   ros::NodeHandle nh("~");
-  arx::body::BodyTfPublisher publisher(nh);
+  arx::BodyTfPublisher publisher(nh);
   ros::spin();
   return 0;
 }

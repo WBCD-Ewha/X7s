@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     control_loop.loop();
     arm_control::PosCmd msg;
     msg.head_yaw = control_loop.getHeadYaw();
-    msg.head_pit = control_loop.getHeadPitch();
+    msg.head_pit = control_loop.getHeadPitch() + 0.1;
     msg.height = control_loop.getHeight();
     msg.tempFloatData[0] = control_loop.getWaistPos();
     pub.publish(msg);

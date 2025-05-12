@@ -6,6 +6,7 @@
 #include <thread>
 #include <arm_control/PosCmd.h>
 #include <arm_control/JointControl.h>
+#include <thread>
 
 // End-effector pose control
 void set_ee_pose_cmd(ros::NodeHandle& nh, bool is_left, const std::vector<double>& pose_xyzrpy, double gripper) {
@@ -36,7 +37,9 @@ void set_joint_pos_cmd(ros::NodeHandle& nh, bool is_left, const std::vector<doub
   ros::Duration(1.0).sleep();
 
   arm_control::JointControl cmd;
-  cmd.joint_pos = joint_angles;
+  for (size_t i = 0; i < 8 && i < joint_angles.size(); ++i) {
+  cmd.joint_pos[i] = static_cast<float>(joint_angles[i]);
+}
 
   ros::Rate rate(10);
   for (int i = 0; i < 20; ++i) {
@@ -46,20 +49,29 @@ void set_joint_pos_cmd(ros::NodeHandle& nh, bool is_left, const std::vector<doub
 }
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "unified_commander");
+  ros::init(argc, argv, "task1_action");
   ros::NodeHandle nh;
 
-  bool use_vr = true;         // true: end-effector 제어, false: joint 제어
-  bool is_left = true;        // true: 왼팔, false: 오른팔
+  bool use_vr = true;
 
   if (use_vr) {
-    std::vector<double> pose = {0.4, 0.0, 0.2, 0.0, 1.57, 0.0}; // xyzrpy
-    double gripper = 1.0;
-    set_ee_pose_cmd(nh, is_left, pose, gripper);
+    std::vector<double> left_pose = {0.1, 0.2, 0.2, 0.0, 0.0, 0.0};
+    std::vector<double> right_pose = {0.1, -0.2, 0.2, 0.0, 0.0, 0.0};
+    double left_gripper = 3.0;
+    double right_gripper = 3.0;
+
+    // 왼팔, 오른팔을 각각 스레드에서 실행
+    std::thread left_thread(set_ee_pose_cmd, std::ref(nh), true, left_pose, left_gripper);
+    std::thread right_thread(set_ee_pose_cmd, std::ref(nh), false, right_pose, right_gripper);
+
+    left_thread.join();
+    right_thread.join();
+
   } else {
-    std::vector<double> joints = {0.0, -0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0}; // 7 joints + gripper
-    set_joint_pos_cmd(nh, is_left, joints);
+    std::vector<double> joints = {-0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2};
+    set_joint_pos_cmd(nh, true, joints);
   }
 
   return 0;
 }
+

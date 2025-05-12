@@ -5,9 +5,12 @@ find_package(catkin REQUIRED COMPONENTS
         roscpp
         arm_control
         sensor_msgs
+        tf
 )
 
-catkin_package()
+catkin_package(
+  CATKIN_DEPENDS roscpp sensor_msgs tf
+)
 
 include_directories(
         ${catkin_INCLUDE_DIRS}
