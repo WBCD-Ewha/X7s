@@ -5,4 +5,3 @@
         <remap from="/joint_information" to="/joint_information2"/>
         <remap from="/follow1_pos_back" to="/follow2_pos_back"/>
     </node>
-</launch>
