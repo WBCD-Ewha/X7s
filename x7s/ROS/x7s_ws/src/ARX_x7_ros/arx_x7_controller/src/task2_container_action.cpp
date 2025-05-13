@@ -24,7 +24,6 @@ void move_to_start_pose(X7StateInterface& controller, ros::NodeHandle& nh) {
     right_thread.join();
 }
 
-
 // 4x4 matrix -> xyzrpy
 void mat_to_xyzrpy(const Eigen::Matrix4d& pose, std::vector<double>& xyz, std::vector<double>& rpy) {
     xyz = {pose(0, 3), pose(1, 3), pose(2, 3)};
@@ -55,34 +54,24 @@ void close_grippers(X7StateInterface& controller, ros::NodeHandle& nh) {
     right_thread.join();
 }
 
-
-void move_arm(X7StateInterface& controller, ros::NodeHandle& nh,
+void open_container(X7StateInterface& controller, ros::NodeHandle& nh,
               const Eigen::Matrix4d& left_grasp_pose,
               const Eigen::Matrix4d& right_grasp_pose,
-              const Eigen::Matrix4d& left_goal_pose,
-              const Eigen::Matrix4d& right_goal_pose,
               const std::vector<double>& left_quat_rpy,
               const std::vector<double>& right_quat_rpy,
               const Eigen::Matrix4d& camera_extrinsic,
-              double press_offset) {
-
+              double angle_rad) {
 
   move_to_start_pose(controller, nh);
+
   // grasp pose transformation w.r.t world frame
   Eigen::Matrix4d left_grasp_world = transform_camera_to_world(left_grasp_pose, camera_extrinsic);
   Eigen::Matrix4d right_grasp_world = transform_camera_to_world(right_grasp_pose, camera_extrinsic);
 
-  Eigen::Matrix4d left_goal_world = transform_camera_to_world(left_goal_pose, camera_extrinsic);
-  Eigen::Matrix4d right_goal_world = transform_camera_to_world(right_goal_pose, camera_extrinsic);
-
-
   // matrix conversion to xyzrpy
   std::vector<double> left_grasp_xyz, right_grasp_xyz, left_grasp_rpy, right_grasp_rpy;
-  std::vector<double> left_goal_xyz, right_goal_xyz, left_goal_rpy, right_goal_rpy;
   mat_to_xyzrpy(left_grasp_world, left_grasp_xyz, left_grasp_rpy);
   mat_to_xyzrpy(right_grasp_world, right_grasp_xyz, right_grasp_rpy);
-  mat_to_xyzrpy(left_goal_world, left_goal_xyz, left_goal_rpy);
-  mat_to_xyzrpy(right_goal_world, right_goal_xyz, right_goal_rpy);
 
   // move to grasp pose
   std::vector<double> left_grasp = {left_grasp_xyz[0], left_grasp_xyz[1], left_grasp_xyz[2],left_grasp_rpy[0], left_grasp_rpy[1], left_grasp_rpy[2]};
@@ -106,30 +95,37 @@ void move_arm(X7StateInterface& controller, ros::NodeHandle& nh,
   right_thread.join();
   sleep_sec(1.0);
 
-  // push the lid
-  Eigen::Vector3d z_axis_left = left_goal_world.linear().col(2);   // 왼팔 Z축
-  Eigen::Vector3d z_axis_right = right_goal_world.linear().col(2); // 오른팔 Z축
+  // rotate the lid flap
+  Eigen::Matrix3d left_rot = left_goal_world.block<3,3>(0,0);
+  Eigen::Matrix3d right_rot = right_goal_world.block<3,3>(0,0);
 
-  Eigen::Vector3d push_left = left_goal_world.translation() - press_offset * z_axis_left;
-  Eigen::Vector3d push_right = right_goal_world.translation() - press_offset * z_axis_right;
+  Eigen::AngleAxisd left_pitch_rot(+angle_rad, left_rot.col(1));   // left +angle
+  Eigen::AngleAxisd right_pitch_rot(-angle_rad, right_rot.col(1)); // right -angle
 
-  std::vector<double> left_push = {
-    push_left.x(), push_left.y(), push_left.z(),
-    left_goal_rpy[0], left_goal_rpy[1], left_goal_rpy[2]
+  Eigen::Matrix3d left_rotated = left_pitch_rot.toRotationMatrix() * left_rot;
+  Eigen::Matrix3d right_rotated = right_pitch_rot.toRotationMatrix() * right_rot;
+
+  Eigen::Vector3d left_rpy = left_rotated.eulerAngles(2, 1, 0);   // ZYX → RPY
+  Eigen::Vector3d right_rpy = right_rotated.eulerAngles(2, 1, 0); // ZYX → RPY
+
+  std::vector<double> left_rotated_pose = {
+    left_goal_xyz[0], left_goal_xyz[1], left_goal_xyz[2],
+    left_rpy[2], left_rpy[1], left_rpy[0]
   };
 
-  std::vector<double> right_push = {
-    push_right.x(), push_right.y(), push_right.z(),
-     right_goal_rpy[0], right_goal_rpy[1],  right_goal_rpy[2]
+  std::vector<double> right_rotated_pose = {
+    right_goal_xyz[0], right_goal_xyz[1], right_goal_xyz[2],
+    right_rpy[2], right_rpy[1], right_rpy[0]
   };
 
-  std::thread left_push_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), true, left_push, 0.0);
-  std::thread right_push_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), false, right_push, 0.0);
+  std::thread left_rotate_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), true, left_rotated_pose, 0.0);
+  std::thread right_rotate_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), false, right_rotated_pose, 0.0);
 
-  left_push_thread.join();
-  right_push_thread.join();
-
+  left_rotate_thread.join();
+  right_rotate_thread.join();
   sleep_sec(2.0);
+
+  move_to_start_pose(controller, nh);
 }
 
 int main(int argc, char** argv) {
@@ -141,37 +137,29 @@ int main(int argc, char** argv) {
   // 1. grasp pose
   Eigen::Matrix4d left_grasp_pose = Eigen::Isometry3d::Identity();
   left_cam_pose(0, 3) = 0.05;  // x
-  left_cam_pose(1, 3) = 0.10;  // y
+  left_cam_pose(1, 3) = 0.05;  // y
   left_cam_pose(2, 3) = 0.01;  // z
 
   Eigen::Matrix4d right_grasp_pose = Eigen::Isometry3d::Identity();
   right_grasp_pose(0, 3) = 0.05;  // x
-  right_grasp_pose(1, 3) = 0.00;  // y
+  right_grasp_pose(1, 3) = -0.05;  // y
   right_grasp_pose(2, 3) = 0.01;  // z
 
-  // 2. goal pose
-  Eigen::Matrix4d left_goal_pose = Eigen::Matrix4d::Identity();;
-  left_cam_pose(0, 3) = 0.05;  // x
-  left_cam_pose(1, 3) = 0.0;  // y
-  left_cam_pose(2, 3) = 0.15;  // z
-
-  Eigen::Matrix4d right_goal_pose = Eigen::Matrix4d::Identity();;
-  right_grasp_pose(0, 3) = 0.05;  // x
-  right_grasp_pose(1, 3) = -0.1;  // y
-  right_grasp_pose(2, 3) = 0.15;  // z
 
   // 3. Example rpy orientation (approach)
   // TODO : check rpy
-  std::vector<double> left_quat_rpy = {1.5707963,  0, -1.5707963};
-  std::vector<double> right_quat_rpy = {1.5707963,  0, -1.5707963};
+  std::vector<double> left_quat_rpy = {1.0,  0, -1.5707963};
+  std::vector<double> right_quat_rpy = {-1.0,  0, -1.5707963};
+
+  // 6. rotate angle
+  double angle_deg = 40.0;
+  double angle_rad = angle_deg * M_PI / 180.0;
 
   // 4. extrinsic
-  Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity();  // 실제 환경에 맞게 교체
-
-  double press_offset = 0.05;
+  Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity();
 
   // processing
-  move_arm(controller, nh, left_grasp_pose, left_goal_pose, right_grasp_pose, right_goal_pose, left_quat_rpy, right_quat_rpy, camera_extrinsic, press_offset);
+  open_container(controller, nh, left_grasp_pose, right_grasp_pose, left_quat_rpy, right_quat_rpy, camera_extrinsic, angle_rad);
 
 
   return 0;
