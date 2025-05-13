@@ -505,6 +505,8 @@ def task1_perception(sample_id,task_num, camera_name, debug=False):
         tuning_scale=0.06,
         debug=debug)
 
+    print(grasp_poses)
+
 
 if __name__ == '__main__':
     task1_perception(4, 1, "camera_l", True)

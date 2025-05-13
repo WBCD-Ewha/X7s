@@ -53,10 +53,15 @@ target_include_directories(keyboard PUBLIC lib/arx_hardware_interface/include li
 target_link_libraries(keyboard ${catkin_LIBRARIES} ${CMAKE_CURRENT_SOURCE_DIR}/lib/arx_x7_src/libarx_x7_src.so)
 add_dependencies(keyboard  ${catkin_EXPORTED_TARGETS})
 
-add_executable(task1_action src/task1_action.cpp)
-target_include_directories(task1_action PUBLIC lib/arx_hardware_interface/include lib/arx_x7_src/include)
+add_executable(task1_action src/task1_action.cpp src/ros_control.cpp)
+target_include_directories(task1_action PUBLIC include lib/arx_hardware_interface/include lib/arx_x7_src/include)
 target_link_libraries(task1_action ${catkin_LIBRARIES} ${CMAKE_CURRENT_SOURCE_DIR}/lib/arx_x7_src/libarx_x7_src.so)
 add_dependencies(task1_action  ${catkin_EXPORTED_TARGETS})
+
+add_executable(ros_control src/ros_control.cpp)
+target_include_directories(ros_control PUBLIC lib/arx_hardware_interface/include lib/arx_x7_src/include)
+target_link_libraries(ros_control ${catkin_LIBRARIES} ${CMAKE_CURRENT_SOURCE_DIR}/lib/arx_x7_src/libarx_x7_src.so)
+add_dependencies(ros_control  ${catkin_EXPORTED_TARGETS})
 
 add_executable(arm_state_publisher src/arm_state_publisher.cpp)
 target_include_directories(arm_state_publisher PUBLIC lib/arx_hardware_interface/include lib/arx_x7_src/include)
