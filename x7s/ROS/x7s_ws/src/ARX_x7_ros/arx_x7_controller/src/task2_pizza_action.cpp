@@ -1,124 +1,141 @@
 #include "arx_x7_controller/x7_controller.hpp"
+#include <ros/package.h>
+#include "ros/ros.h"
+#include <arm_control/PosCmd.h>
 #include <Eigen/Dense>
-#include <ros/ros.h>
 #include <thread>
 #include <chrono>
+#include <vector>
 
 void sleep_sec(double t) {
   std::this_thread::sleep_for(std::chrono::duration<double>(t));
 }
 
-void graspPizza(
-    arx::x7::X7Controller& arm,
-    const Eigen::Isometry3d& pose_cam,
-    const Eigen::Matrix4d& camera_extrinsic,
-    const Eigen::Quaterniond& fixed_quat
-) {
-  // 1. Start pose
-  std::vector<double> start_config(7, 0.0);
-  arm.setJointPositions(start_config);
-  sleep_sec(1.5);
+void set_ee_pose_cmd(ros::NodeHandle& nh, bool is_left, const std::vector<double>& pose_xyzrpy, double gripper) {
+  std::string topic_name = is_left ? "/ARX_VR_L" : "/ARX_VR_R";
+  ros::Publisher pub = nh.advertise<arm_control::PosCmd>(topic_name, 10);
+  ros::Duration(1.0).sleep();
 
-  // 2. camera frame → world frame
+  arm_control::PosCmd cmd;
+  cmd.x = pose_xyzrpy[0];
+  cmd.y = pose_xyzrpy[1];
+  cmd.z = pose_xyzrpy[2];
+  cmd.roll = pose_xyzrpy[3];
+  cmd.pitch = pose_xyzrpy[4];
+  cmd.yaw = pose_xyzrpy[5];
+  cmd.gripper = gripper;
+
+  ros::Rate rate(10);
+  for (int i = 0; i < 20; ++i) {
+    pub.publish(cmd);
+    rate.sleep();
+  }
+}
+
+void grasp_and_place(ros::NodeHandle& nh, bool is_left,
+                     const Eigen::Isometry3d& object_pose_cam,
+                     const Eigen::Isometry3d& goal_pose_cam,
+                     const Eigen::Matrix4d& camera_extrinsic,
+                     const Eigen::Quaterniond& fixed_quat,
+                     double angle_rad) {
+
+  // 1. 카메라 → 월드 좌표계 변환
   Eigen::Matrix4d cam_T_world = camera_extrinsic.inverse();
-  Eigen::Isometry3d pose_world = Eigen::Isometry3d(cam_T_world) * pose_cam;
+  Eigen::Isometry3d object_pose_world = Eigen::Isometry3d(cam_T_world) * object_pose_cam;
+  Eigen::Isometry3d goal_pose_world = Eigen::Isometry3d(cam_T_world) * goal_pose_cam;
 
-  ROS_INFO_STREAM("pose in world:\n" << pose_world.matrix());
+  // 2. 고정 orientation 적용
+  object_pose_world.linear() = fixed_quat.toRotationMatrix();
+  goal_pose_world.linear() = fixed_quat.toRotationMatrix();
 
   // 3. Gripper 열기
-  arm.setCatch(0.2);
+  // TODO: check yaw orientation
+  set_ee_pose_cmd(nh, is_left,
+                  {object_pose_world.translation().x(),
+                   object_pose_world.translation().y(),
+                   object_pose_world.translation().z(),
+                   0.0, 0.0, 0.0},
+                  3.0); // open
   sleep_sec(1.0);
 
-  // 4. Grasp pose로 이동 (orientation은 fixed_approach_quat 사용)
-  pose_world.linear() = fixed_approach_quat.toRotationMatrix();
-
-  arm.setEndPose(pose_world);
+  // 4. Grasp pose 이동
+  set_ee_pose_cmd(nh, is_left,
+                  {object_pose_world.translation().x(),
+                   object_pose_world.translation().y(),
+                   object_pose_world.translation().z(),
+                   0.0, 0.0, -1.0},
+                  3.0);
   sleep_sec(2.0);
-
-  ROS_INFO("Grasp the plate.");
 
   // 5. Gripper 닫기
-  arm.setCatch(0.0);
+  set_ee_pose_cmd(nh, is_left,
+                  {object_pose_world.translation().x(),
+                   object_pose_world.translation().y(),
+                   object_pose_world.translation().z(),
+                   0.0, 0.0, -1.0},
+                  0.0); // close
   sleep_sec(1.0);
 
-  ROS_INFO("Complete.");
-}
-
-movetoContainer(
-    arx::x7::X7Controller& arm,
-    const Eigen::Isometry3d& pose_cam,
-    const Eigen::Matrix4d& camera_extrinsic,
-    const std::pair<Eigen::Quaterniond, Eigen::Quaterniond>& fixed_approach_quat
-    double angle_rad
-) {
-
-  ee_pose = arm.getEndPose()
-  print("ee_pose: ", ee_pose)
-
-  joint_curr = arm.getJointCurrent()
-  print("joint_currents: ", joint_curr)
-
-  // 2. camera frame → world frame
-  Eigen::Matrix4d cam_T_world = camera_extrinsic.inverse();
-  Eigen::Isometry3d pose_world = Eigen::Isometry3d(cam_T_world) * pose_cam;
-
-  ROS_INFO_STREAM("pose in world:\n" << pose_world.matrix());
-
-  // 4. Grasp pose로 이동 (orientation은 fixed_approach_quat 사용)
-  pose_world.linear() = fixed_approach_quat.first.toRotationMatrix();
-
-  arm.setEndPose(pose_world);
+  // 6. Goal pose로 이동
+  // TODO : check roll orientation
+  set_ee_pose_cmd(nh, is_left,
+                  {goal_pose_world.translation().x(),
+                   goal_pose_world.translation().y(),
+                   goal_pose_world.translation().z(),
+                   -1.0, 0.0, -1.0},
+                  0.0);
   sleep_sec(2.0);
 
-  Eigen::Matrix3d rot = pose_world.linear();
-  Eigen::AngleAxisd roll_rot(angle_rad, rot.col(1));  // gripper의 Y축 = col(1)
-  pose_world.linear() = roll_rot.toRotationMatrix() * rot;
+  // 7. Goal pose에서 Y축 회전 적용
+  Eigen::Matrix3d rot = goal_pose_world.linear();
+  Eigen::AngleAxisd y_rot(angle_rad, rot.col(1));
+  Eigen::Matrix3d rotated = y_rot.toRotationMatrix() * rot;
 
-  ROS_INFO_STREAM("Pose after Y-axis tilt:\n" << pose_world.matrix());
-  arm.setEndPose(pose_world);
+  Eigen::Vector3d euler = rotated.eulerAngles(0, 1, 2);  // RPY
+
+  set_ee_pose_cmd(nh, is_left,
+                  {goal_pose_world.translation().x(),
+                   goal_pose_world.translation().y(),
+                   goal_pose_world.translation().z(),
+                   euler[0], euler[1], euler[2]},
+                  0.0);
   sleep_sec(2.0);
 
-
+  // TODO : 다시 plate 놓는 코드 필요 (return to obj pose)
 }
-
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "pick_and_place_pizza_node");
-  ros::NodeHandle nh_left("left");
-  ros::NodeHandle nh_right("right");
+  ros::init(argc, argv, "pick_and_place_node");
+  ros::NodeHandle nh;
 
-  arx::x7::X7Controller left_arm(nh_left);
-  arx::x7::X7Controller right_arm(nh_right);
-
-   // ===== 1. Grasp plate pose =====
+  // 1. grasp pose
   Eigen::Isometry3d object_pose_cam = Eigen::Isometry3d::Identity();
-  object_pose_cam.translate(Eigen::Vector3d(0.3, 0.2, 0.45));  // 예: Y > 0 → 왼팔 사용
+  object_pose_cam.translate(Eigen::Vector3d(0.05, 0.1, 0.2));  // Y 기준 왼팔 후보
 
-   // ===== 2. Goal pose =====
-   Eigen::Isometry3d goal_pose_cam = Eigen::Isometry3d::Identity();
-   goal_pose_cam.translate(Eigen::Vector3d(0.4, 0.2, 0.6));  // 컨테이너 위쪽 위치
+  // 2. Goal pose (컨테이너 위)
+  Eigen::Isometry3d goal_pose_cam = Eigen::Isometry3d::Identity();
+  goal_pose_cam.translate(Eigen::Vector3d(0.05, -0.1, 0.4));
 
-  // 고정 orientation (wxyz)
-  Eigen::Quaterniond q_fixed(1.0, 0.0, 0.0, 0.0);
+  // 3. 고정 orientation (wxyz)
+  Eigen::Quaterniond fixed_quat(1.0, 0.0, 0.0, 0.0);
 
-  // 카메라 extrinsic (실제 값으로 교체 필요)
+  // 4. 카메라 extrinsic
+  // TODO: check Extrinsic
   Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity();
 
-  double angle_deg = 80
+  // 5. 카메라 → 월드 변환 후 좌표계 기준으로 팔 선택
+  Eigen::Matrix4d cam_T_world = camera_extrinsic.inverse();
+  Eigen::Isometry3d object_pose_world = Eigen::Isometry3d(cam_T_world) * object_pose_cam;
+  bool use_left = object_pose_world.translation().y() > 0;
+
+  ROS_INFO_STREAM("Using " << (use_left ? "LEFT" : "RIGHT") << " arm");
+
+  // 6. 회전 각도 (Y축 기준)
+  double angle_deg = 80.0;
   double angle_rad = angle_deg * M_PI / 180.0;
 
-  // 기준에 따라 팔 선택 (Y값 기준)
-  bool use_left = object_pose_cam.translation().y() > 0;
-
-  if (use_left) {
-    ROS_INFO("Using LEFT arm to grasp.");
-    graspPlate(left_arm, object_pose_cam, camera_extrinsic, q_fixed);
-    moveToContainer(left_arm, goal_pose_cam, camera_extrinsic, q_fixed, angle_rad);
-  } else {
-    ROS_INFO("Using RIGHT arm to grasp.");
-    graspPlate(right_arm, object_pose_cam, camera_extrinsic, q_fixed);
-    moveToContainer(right_arm, goal_pose_cam, camera_extrinsic, q_fixed, angle_rad * (-1.0));
-  }
+  // 7. 전체 수행
+  grasp_and_place(nh, use_left, object_pose_cam, goal_pose_cam, camera_extrinsic, fixed_quat, use_left ? angle_rad : -angle_rad);
 
   return 0;
 }
