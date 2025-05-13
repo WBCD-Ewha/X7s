@@ -7,12 +7,31 @@ find_package(catkin REQUIRED COMPONENTS
         roscpp
         roslib
         std_msgs
+        sensor_msgs
         message_generation
+        robot_state_publisher
+        urdf
+        kdl_parser
 )
+
+#add_message_files(
+#  FILES
+#  PosCmd.msg
+#  JointInformation.msg
+#  JointControl.msg
+#  RobotCmd.msg
+#  RobotStatus.msg
+#)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
 
 catkin_package(
         INCLUDE_DIRS include
-        CATKIN_DEPENDS arm_control arx5_arm_msg roscpp std_msgs
+        CATKIN_DEPENDS arm_control arx5_arm_msg roscpp std_msgs sensor_msgs robot_state_publisher urdf kdl_parser message_runtime
 )
 
 include_directories(
@@ -43,6 +62,7 @@ add_executable(arm_state_publisher src/arm_state_publisher.cpp)
 target_include_directories(arm_state_publisher PUBLIC lib/arx_hardware_interface/include lib/arx_x7_src/include)
 target_link_libraries(arm_state_publisher ${catkin_LIBRARIES} ${CMAKE_CURRENT_SOURCE_DIR}/lib/arx_x7_src/libarx_x7_src.so)
 add_dependencies(arm_state_publisher  ${catkin_EXPORTED_TARGETS})
+
 
 install(TARGETS
         x7_controller
