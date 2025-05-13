@@ -3,10 +3,16 @@
 #include <ros/package.h>
 #include "ros/ros.h"
 #include <arm_control/PosCmd.h>
+#include <arm_control/JointControl.h>
 #include <Eigen/Dense>
 #include <thread>
+#include <Eigen/Dense>
+#include <iostream>
 #include <chrono>
 #include <vector>
+#include <cmath>
+
+using namespace arx::x7;
 
 void sleep_sec(double t) {
   std::this_thread::sleep_for(std::chrono::duration<double>(t));
@@ -86,18 +92,9 @@ void open_container(X7StateInterface& controller, ros::NodeHandle& nh,
   close_grippers(controller, nh);
   sleep_sec(1.0);
 
-  // move to gaol pose
-  std::vector<double> left_goal = {left_goal_xyz[0], left_goal_xyz[1], left_goal_xyz[2],left_goal_rpy[0], left_goal_rpy[1], left_goal_rpy[2]};
-  std::vector<double> right_goal = {right_goal_xyz[0], right_goal_xyz[1], right_goal_xyz[2], right_goal_rpy[0], right_goal_rpy[1], right_goal_rpy[2]};
-  std::thread left_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), true, left_grasp, 0.0);
-  std::thread right_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), false, right_grasp, 0.0);
-  left_thread.join();
-  right_thread.join();
-  sleep_sec(1.0);
-
   // rotate the lid flap
-  Eigen::Matrix3d left_rot = left_goal_world.block<3,3>(0,0);
-  Eigen::Matrix3d right_rot = right_goal_world.block<3,3>(0,0);
+  Eigen::Matrix3d left_rot = left_grasp_world.block<3,3>(0,0);
+  Eigen::Matrix3d right_rot = right_grasp_world.block<3,3>(0,0);
 
   Eigen::AngleAxisd left_pitch_rot(+angle_rad, left_rot.col(1));   // left +angle
   Eigen::AngleAxisd right_pitch_rot(-angle_rad, right_rot.col(1)); // right -angle
@@ -109,12 +106,12 @@ void open_container(X7StateInterface& controller, ros::NodeHandle& nh,
   Eigen::Vector3d right_rpy = right_rotated.eulerAngles(2, 1, 0); // ZYX → RPY
 
   std::vector<double> left_rotated_pose = {
-    left_goal_xyz[0], left_goal_xyz[1], left_goal_xyz[2],
+    left_grasp_xyz[0], left_grasp_xyz[1], left_grasp_xyz[2],
     left_rpy[2], left_rpy[1], left_rpy[0]
   };
 
   std::vector<double> right_rotated_pose = {
-    right_goal_xyz[0], right_goal_xyz[1], right_goal_xyz[2],
+    right_grasp_xyz[0], right_grasp_xyz[1], right_grasp_xyz[2],
     right_rpy[2], right_rpy[1], right_rpy[0]
   };
 
@@ -135,12 +132,12 @@ int main(int argc, char** argv) {
   arx::x7::X7StateInterface controller(nh);
 
   // 1. grasp pose
-  Eigen::Matrix4d left_grasp_pose = Eigen::Isometry3d::Identity();
-  left_cam_pose(0, 3) = 0.05;  // x
-  left_cam_pose(1, 3) = 0.05;  // y
-  left_cam_pose(2, 3) = 0.01;  // z
+  Eigen::Matrix4d left_grasp_pose = Eigen::Matrix4d::Identity();
+  left_grasp_pose(0, 3) = 0.05;  // x
+  left_grasp_pose(1, 3) = 0.05;  // y
+  left_grasp_pose(2, 3) = 0.01;  // z
 
-  Eigen::Matrix4d right_grasp_pose = Eigen::Isometry3d::Identity();
+  Eigen::Matrix4d right_grasp_pose = Eigen::Matrix4d::Identity();
   right_grasp_pose(0, 3) = 0.05;  // x
   right_grasp_pose(1, 3) = -0.05;  // y
   right_grasp_pose(2, 3) = 0.01;  // z

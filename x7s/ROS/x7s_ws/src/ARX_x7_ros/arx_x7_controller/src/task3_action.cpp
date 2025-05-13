@@ -3,10 +3,16 @@
 #include <ros/package.h>
 #include "ros/ros.h"
 #include <arm_control/PosCmd.h>
+#include <arm_control/JointControl.h>
 #include <Eigen/Dense>
 #include <thread>
+#include <Eigen/Dense>
+#include <iostream>
 #include <chrono>
 #include <vector>
+#include <cmath>
+
+using namespace arx::x7;
 
 void sleep_sec(double t) {
   std::this_thread::sleep_for(std::chrono::duration<double>(t));
@@ -100,18 +106,24 @@ void move_arm(X7StateInterface& controller, ros::NodeHandle& nh,
   // move to gaol pose
   std::vector<double> left_goal = {left_goal_xyz[0], left_goal_xyz[1], left_goal_xyz[2],left_goal_rpy[0], left_goal_rpy[1], left_goal_rpy[2]};
   std::vector<double> right_goal = {right_goal_xyz[0], right_goal_xyz[1], right_goal_xyz[2], right_goal_rpy[0], right_goal_rpy[1], right_goal_rpy[2]};
-  std::thread left_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), true, left_grasp, 0.0);
-  std::thread right_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), false, right_grasp, 0.0);
-  left_thread.join();
-  right_thread.join();
+  std::thread left_goal_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), true, left_grasp, 0.0);
+  std::thread right_goal_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), false, right_grasp, 0.0);
+  left_goal_thread.join();
+  right_goal_thread.join();
   sleep_sec(1.0);
 
   // push the lid
-  Eigen::Vector3d z_axis_left = left_goal_world.linear().col(2);   // 왼팔 Z축
-  Eigen::Vector3d z_axis_right = right_goal_world.linear().col(2); // 오른팔 Z축
+  Eigen::Matrix3d left_rot = left_goal_world.block<3,3>(0,0);
+  Eigen::Matrix3d right_rot = right_goal_world.block<3,3>(0,0);
 
-  Eigen::Vector3d push_left = left_goal_world.translation() - press_offset * z_axis_left;
-  Eigen::Vector3d push_right = right_goal_world.translation() - press_offset * z_axis_right;
+  Eigen::Vector3d z_axis_left = left_rot.col(2);    // Z축
+  Eigen::Vector3d z_axis_right = right_rot.col(2);  // Z축
+
+  Eigen::Vector3d pos_left = left_goal_world.block<3,1>(0,3);
+  Eigen::Vector3d pos_right = right_goal_world.block<3,1>(0,3);
+
+  Eigen::Vector3d push_left = pos_left - press_offset * z_axis_left;
+  Eigen::Vector3d push_right = pos_right - press_offset * z_axis_right;
 
   std::vector<double> left_push = {
     push_left.x(), push_left.y(), push_left.z(),
@@ -139,21 +151,21 @@ int main(int argc, char** argv) {
   arx::x7::X7StateInterface controller(nh);
 
   // 1. grasp pose
-  Eigen::Matrix4d left_grasp_pose = Eigen::Isometry3d::Identity();
-  left_cam_pose(0, 3) = 0.05;  // x
-  left_cam_pose(1, 3) = 0.10;  // y
-  left_cam_pose(2, 3) = 0.01;  // z
+  Eigen::Matrix4d left_grasp_pose = Eigen::Matrix4d::Identity();
+  left_grasp_pose(0, 3) = 0.05;  // x
+  left_grasp_pose(1, 3) = 0.10;  // y
+  left_grasp_pose(2, 3) = 0.01;  // z
 
-  Eigen::Matrix4d right_grasp_pose = Eigen::Isometry3d::Identity();
+  Eigen::Matrix4d right_grasp_pose = Eigen::Matrix4d::Identity();
   right_grasp_pose(0, 3) = 0.05;  // x
   right_grasp_pose(1, 3) = 0.00;  // y
   right_grasp_pose(2, 3) = 0.01;  // z
 
   // 2. goal pose
   Eigen::Matrix4d left_goal_pose = Eigen::Matrix4d::Identity();;
-  left_cam_pose(0, 3) = 0.05;  // x
-  left_cam_pose(1, 3) = 0.0;  // y
-  left_cam_pose(2, 3) = 0.15;  // z
+  left_goal_pose(0, 3) = 0.05;  // x
+  left_goal_pose(1, 3) = 0.0;  // y
+  left_goal_pose(2, 3) = 0.15;  // z
 
   Eigen::Matrix4d right_goal_pose = Eigen::Matrix4d::Identity();;
   right_grasp_pose(0, 3) = 0.05;  // x

@@ -58,6 +58,21 @@ target_include_directories(task1_action PUBLIC include lib/arx_hardware_interfac
 target_link_libraries(task1_action ${catkin_LIBRARIES} ${CMAKE_CURRENT_SOURCE_DIR}/lib/arx_x7_src/libarx_x7_src.so)
 add_dependencies(task1_action  ${catkin_EXPORTED_TARGETS})
 
+add_executable(task2_container_action src/task2_container_action.cpp src/ros_control.cpp)
+target_include_directories(task2_container_action PUBLIC include lib/arx_hardware_interface/include lib/arx_x7_src/include)
+target_link_libraries(task2_container_action ${catkin_LIBRARIES} ${CMAKE_CURRENT_SOURCE_DIR}/lib/arx_x7_src/libarx_x7_src.so)
+add_dependencies(task2_container_action  ${catkin_EXPORTED_TARGETS})
+
+add_executable(task2_pizza_action src/task2_pizza_action.cpp src/ros_control.cpp)
+target_include_directories(task2_pizza_action PUBLIC include lib/arx_hardware_interface/include lib/arx_x7_src/include)
+target_link_libraries(task2_pizza_action ${catkin_LIBRARIES} ${CMAKE_CURRENT_SOURCE_DIR}/lib/arx_x7_src/libarx_x7_src.so)
+add_dependencies(task2_pizza_action  ${catkin_EXPORTED_TARGETS})
+
+add_executable(task3_action src/task3_action.cpp src/ros_control.cpp)
+target_include_directories(task3_action PUBLIC include lib/arx_hardware_interface/include lib/arx_x7_src/include)
+target_link_libraries(task3_action ${catkin_LIBRARIES} ${CMAKE_CURRENT_SOURCE_DIR}/lib/arx_x7_src/libarx_x7_src.so)
+add_dependencies(task3_action  ${catkin_EXPORTED_TARGETS})
+
 add_executable(ros_control src/ros_control.cpp)
 target_include_directories(ros_control PUBLIC lib/arx_hardware_interface/include lib/arx_x7_src/include)
 target_link_libraries(ros_control ${catkin_LIBRARIES} ${CMAKE_CURRENT_SOURCE_DIR}/lib/arx_x7_src/libarx_x7_src.so)
