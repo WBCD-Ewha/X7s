@@ -3,3 +3,4 @@
 **.catkin_workspace
 **install
 **log
+pybind11/
