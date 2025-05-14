@@ -38,27 +38,70 @@ void mat_to_xyzrpy(const Eigen::Matrix4d& pose, std::vector<double>& xyz, std::v
     rpy = {euler[2], euler[1], euler[0]};
 }
 
+
+void get_current_poses(X7StateInterface& controller,
+                       std::vector<double>& current_left_pose,
+                       std::vector<double>& current_right_pose,
+                       int max_wait_count = 50) {
+    ros::Rate wait_rate(10);
+    int wait_count = 0;
+
+    while (wait_count < max_wait_count) {
+        ros::spinOnce();
+        current_left_pose = controller.get_latest_ee_pose(true);
+        current_right_pose = controller.get_latest_ee_pose(false);
+
+        bool is_left_valid = !std::all_of(current_left_pose.begin(), current_left_pose.end(),
+                                          [](double v) { return std::abs(v) < 1e-5; });
+        bool is_right_valid = !std::all_of(current_right_pose.begin(), current_right_pose.end(),
+                                           [](double v) { return std::abs(v) < 1e-5; });
+
+        if (is_left_valid && is_right_valid) break;
+
+        wait_rate.sleep();
+        ++wait_count;
+    }
+
+    if (wait_count == max_wait_count) {
+        ROS_WARN("Timeout: ee_pose messages not received from both arms.");
+    }
+
+    ROS_INFO("Current Left Pose (x y z r p y):");
+    for (double v : current_left_pose) std::cout << v << " ";
+    std::cout << std::endl;
+
+    ROS_INFO("Current Right Pose (x y z r p y):");
+    for (double v : current_right_pose) std::cout << v << " ";
+    std::cout << std::endl;
+}
+
+
 void open_grippers(X7StateInterface& controller, ros::NodeHandle& nh) {
     /// 각 arm의 현재 pose 가져올 것 (x, y, z, r, p, y 형태)
-    std::vector<double> current_left_pose = controller.get_latest_ee_pose(true);
-    std::vector<double> current_right_pose = controller.get_latest_ee_pose(false);
+    std::vector<double> current_left_pose, current_right_pose;
+    get_current_poses(controller, current_left_pose, current_right_pose);
 
-    std::thread left_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), true, current_left_pose, 3.0);
-    std::thread right_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), false, current_right_pose, 3.0);
+    std::thread left_thread(&X7StateInterface::set_ee_pose_cmd, &controller,
+                            std::ref(nh), true, current_left_pose, 3.0);
+    std::thread right_thread(&X7StateInterface::set_ee_pose_cmd, &controller,
+                             std::ref(nh), false, current_right_pose, 3.0);
     left_thread.join();
     right_thread.join();
 }
 
 void close_grippers(X7StateInterface& controller, ros::NodeHandle& nh) {
     /// 각 arm의 현재 pose 가져올 것 (x, y, z, r, p, y 형태)
-    std::vector<double> current_left_pose = controller.get_latest_ee_pose(true);
-    std::vector<double> current_right_pose = controller.get_latest_ee_pose(false);
+    std::vector<double> current_left_pose, current_right_pose;
+    get_current_poses(controller, current_left_pose, current_right_pose);
 
-    std::thread left_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), true, current_left_pose, 0.0);
-    std::thread right_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), false, current_right_pose, 0.0);
+    std::thread left_thread(&X7StateInterface::set_ee_pose_cmd, &controller,
+                            std::ref(nh), true, current_left_pose, 0.0);
+    std::thread right_thread(&X7StateInterface::set_ee_pose_cmd, &controller,
+                             std::ref(nh), false, current_right_pose, 0.0);
     left_thread.join();
     right_thread.join();
 }
+
 
 void open_container(X7StateInterface& controller, ros::NodeHandle& nh,
               const Eigen::Matrix4d& left_grasp_pose,
@@ -86,11 +129,11 @@ void open_container(X7StateInterface& controller, ros::NodeHandle& nh,
   std::thread right_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), false, right_grasp, 3.0);
   left_thread.join();
   right_thread.join();
-  sleep_sec(1.0);
+  //sleep_sec(1.0);
 
   // close gipper
   close_grippers(controller, nh);
-  sleep_sec(1.0);
+  //sleep_sec(1.0);
 
   // rotate the lid flap
   Eigen::Matrix3d left_rot = left_grasp_world.block<3,3>(0,0);
@@ -107,7 +150,7 @@ void open_container(X7StateInterface& controller, ros::NodeHandle& nh,
 
   std::vector<double> left_rotated_pose = {
     left_grasp_xyz[0], left_grasp_xyz[1], left_grasp_xyz[2],
-    left_rpy[2], left_rpy[1], left_rpy[0]
+    left_rpy[2], left_rpy[1], -left_rpy[0]
   };
 
   std::vector<double> right_rotated_pose = {
@@ -120,7 +163,7 @@ void open_container(X7StateInterface& controller, ros::NodeHandle& nh,
 
   left_rotate_thread.join();
   right_rotate_thread.join();
-  sleep_sec(2.0);
+  //sleep_sec(2.0);
 
   move_to_start_pose(controller, nh);
 }
@@ -145,8 +188,8 @@ int main(int argc, char** argv) {
 
   // 3. Example rpy orientation (approach)
   // TODO : check rpy
-  std::vector<double> left_quat_rpy = {1.0,  0, -1.5707963};
-  std::vector<double> right_quat_rpy = {-1.0,  0, -1.5707963};
+  std::vector<double> left_quat_rpy = {0.0,  -1.0, -1.0};
+  std::vector<double> right_quat_rpy = {0.0,  -1.0, 1.0};
 
   // 6. rotate angle
   double angle_deg = 40.0;

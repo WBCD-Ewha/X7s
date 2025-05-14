@@ -27,31 +27,72 @@ void mat_to_xyzrpy(const Eigen::Matrix4d& pose, std::vector<double>& xyz, std::v
 }
 
 void move_to_start_pose(X7StateInterface& controller, ros::NodeHandle& nh) {
-    std::vector<double> start_config = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0};
+    std::vector<double> start_config = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     std::thread left_thread(&X7StateInterface::set_joint_pos_cmd, &controller, std::ref(nh), true, start_config);
     std::thread right_thread(&X7StateInterface::set_joint_pos_cmd, &controller, std::ref(nh), false, start_config);
     left_thread.join();
     right_thread.join();
 }
 
+void get_current_poses(X7StateInterface& controller,
+                       std::vector<double>& current_left_pose,
+                       std::vector<double>& current_right_pose,
+                       int max_wait_count = 50) {
+    ros::Rate wait_rate(10);
+    int wait_count = 0;
+
+    while (wait_count < max_wait_count) {
+        ros::spinOnce();
+        current_left_pose = controller.get_latest_ee_pose(true);
+        current_right_pose = controller.get_latest_ee_pose(false);
+
+        bool is_left_valid = !std::all_of(current_left_pose.begin(), current_left_pose.end(),
+                                          [](double v) { return std::abs(v) < 1e-5; });
+        bool is_right_valid = !std::all_of(current_right_pose.begin(), current_right_pose.end(),
+                                           [](double v) { return std::abs(v) < 1e-5; });
+
+        if (is_left_valid && is_right_valid) break;
+
+        wait_rate.sleep();
+        ++wait_count;
+    }
+
+    if (wait_count == max_wait_count) {
+        ROS_WARN("Timeout: ee_pose messages not received from both arms.");
+    }
+
+    ROS_INFO("Current Left Pose (x y z r p y):");
+    for (double v : current_left_pose) std::cout << v << " ";
+    std::cout << std::endl;
+
+    ROS_INFO("Current Right Pose (x y z r p y):");
+    for (double v : current_right_pose) std::cout << v << " ";
+    std::cout << std::endl;
+}
+
+
 void open_grippers(X7StateInterface& controller, ros::NodeHandle& nh) {
     /// 각 arm의 현재 pose 가져올 것 (x, y, z, r, p, y 형태)
-    std::vector<double> current_left_pose = controller.get_latest_ee_pose(true);
-    std::vector<double> current_right_pose = controller.get_latest_ee_pose(false);
+    std::vector<double> current_left_pose, current_right_pose;
+    get_current_poses(controller, current_left_pose, current_right_pose);
 
-    std::thread left_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), true, current_left_pose, 3.0);
-    std::thread right_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), false, current_right_pose, 3.0);
+    std::thread left_thread(&X7StateInterface::set_ee_pose_cmd, &controller,
+                            std::ref(nh), true, current_left_pose, 3.0);
+    std::thread right_thread(&X7StateInterface::set_ee_pose_cmd, &controller,
+                             std::ref(nh), false, current_right_pose, 3.0);
     left_thread.join();
     right_thread.join();
 }
 
 void close_grippers(X7StateInterface& controller, ros::NodeHandle& nh) {
     /// 각 arm의 현재 pose 가져올 것 (x, y, z, r, p, y 형태)
-    std::vector<double> current_left_pose = controller.get_latest_ee_pose(true);
-    std::vector<double> current_right_pose = controller.get_latest_ee_pose(false);
+    std::vector<double> current_left_pose, current_right_pose;
+    get_current_poses(controller, current_left_pose, current_right_pose);
 
-    std::thread left_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), true, current_left_pose, 0.0);
-    std::thread right_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), false, current_right_pose, 0.0);
+    std::thread left_thread(&X7StateInterface::set_ee_pose_cmd, &controller,
+                            std::ref(nh), true, current_left_pose, 0.0);
+    std::thread right_thread(&X7StateInterface::set_ee_pose_cmd, &controller,
+                             std::ref(nh), false, current_right_pose, 0.0);
     left_thread.join();
     right_thread.join();
 }
@@ -92,7 +133,7 @@ void grasp_cloth(X7StateInterface& controller, ros::NodeHandle& nh, const Eigen:
 }
 
 void stretch_cloth(X7StateInterface& controller, ros::NodeHandle& nh, double max_torque_threshold = 1.2, double step_size = 0.02) {
-    while (ros::ok()) {
+    //while (ros::ok()) {
         std::vector<double> left_pose = controller.get_latest_ee_pose(true);
         std::vector<double> right_pose = controller.get_latest_ee_pose(false);
         std::vector<double> left_joint = controller.get_latest_joint_info(true);
@@ -121,7 +162,7 @@ void stretch_cloth(X7StateInterface& controller, ros::NodeHandle& nh, double max
         bool over_threshold = false;
         for (auto& val : left_torque) if (val > max_torque_threshold) over_threshold = true;
         for (auto& val : right_torque) if (val > max_torque_threshold) over_threshold = true;
-        if (over_threshold) break;
+        //if (over_threshold) break;
 
         left_pose[1] += step_size;
         right_pose[1] -= step_size;
@@ -132,7 +173,8 @@ void stretch_cloth(X7StateInterface& controller, ros::NodeHandle& nh, double max
         right_thread.join();
 
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
+
+    //}
 }
 
 void fling_cloth(X7StateInterface& controller, ros::NodeHandle& nh,
@@ -185,35 +227,50 @@ int main(int argc, char** argv) {
 
     // 단일 controller 인스턴스로 양팔 제어
     arx::x7::X7StateInterface controller(nh);
+   
 
     // TODO: 실제 값으로 대체 (ros service 이용해서 perception node한테서 받기)
     // Example pose from camera (homogeneous transform 4x4)
     // 일단은 world frame 기준으로 아무 값 넣음
     Eigen::Matrix4d left_cam_pose = Eigen::Matrix4d::Identity();
-    left_cam_pose(0, 3) = 0.15;  // x
-    left_cam_pose(1, 3) = 0.15;  // y
-    left_cam_pose(2, 3) = 0.20;  // z  //TODO
+    left_cam_pose(0, 3) = 0.05;  // x
+    left_cam_pose(1, 3) = 0.0;  // y
+    left_cam_pose(2, 3) = 0.10;  // z  //TODO
 
     Eigen::Matrix4d right_cam_pose = Eigen::Matrix4d::Identity();
-    right_cam_pose(0, 3) = 0.15;  // x
-    right_cam_pose(1, 3) = -0.15;  // y
-    right_cam_pose(2, 3) = 0.20;  // z
+    right_cam_pose(0, 3) = 0.05;  // x
+    right_cam_pose(1, 3) = 0.0;  // y
+    right_cam_pose(2, 3) = 0.10;  // z
 
     Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity(); // TODO: 실제 Extrinsic
 
     // Example rpy orientation (approach)
-    std::vector<double> left_quat_rpy = {1.5707963,  0, -1.5707963};
-    std::vector<double> right_quat_rpy = {1.5707963,  0, -1.5707963};
+    std::vector<double> left_quat_rpy = {1.5707963, 1.5707963, 0};
+    std::vector<double> right_quat_rpy = {-1.5707963, 1.5707963, 0};
 
     double pick_up_height = 0.2;
 
+    // test
+    //std::vector<double> test_pos_left = {-0.361, -1.15, -0.05, 0.0157, 0.471, -0.189, 1.0, 0.0};
+    //std::vector<double> test_pos_right = {0.361, 1.15, -0.05, 0.0157, -0.471, 0.189, -1.0, 0.0};
+    
+    //std::thread left_thread(&X7StateInterface::set_joint_pos_cmd, &controller, std::ref(nh), true, test_pos_left);
+    //std::thread right_thread(&X7StateInterface::set_joint_pos_cmd, &controller, std::ref(nh), false, test_pos_right);
+    //left_thread.join();
+    //right_thread.join();
+    
+    //std::vector<double> current_left_pose, current_right_pose;
+    //get_current_poses(controller, current_left_pose, current_right_pose);
+    //
+    
+    
     grasp_cloth(controller, nh, left_cam_pose, right_cam_pose, camera_extrinsic, left_quat_rpy, right_quat_rpy, pick_up_height);
-    stretch_cloth(controller, nh, 1.2, 0.02);  // TODO: max torque 조정
+    //stretch_cloth(controller, nh, 1.2, 0.08);  // TODO: max torque 조정
 
-    std::vector<double> left_fling_pose = {0.35, 0.15, 0.226, 0.0, 0.0, 0.0, 0.0};   // TODO: 적절히 조정
-    std::vector<double> right_fling_pose = {0.35, -0.15, 0.226, 0.0, 0.0, 0.0, 0.0};   // TODO: 적절히 조정
+    std::vector<double> left_fling_pose = {0.25, 0.10, 0.226, 0.0, 0.0, 0.0, 0.0};   // TODO: 적절히 조정
+    std::vector<double> right_fling_pose = {0.25, -0.10, 0.226, 0.0, 0.0, 0.0, 0.0};   // TODO: 적절히 조정
 
-    fling_cloth(controller, nh, left_fling_pose, right_fling_pose);
+    //fling_cloth(controller, nh, left_fling_pose, right_fling_pose);
 
     return 0;
 }

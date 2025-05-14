@@ -93,8 +93,10 @@ namespace arx::x7 {
       ros::Duration(1.0).sleep();
 
       arm_control::JointControl cmd;
+      ROS_INFO_STREAM("Publishing joint_pos:");
       for (size_t i = 0; i < 8 && i < joint_angles.size(); ++i) {
       cmd.joint_pos[i] = static_cast<float>(joint_angles[i]);
+      ROS_INFO_STREAM("joint_pos[" << i << "] = " << cmd.joint_pos[i]);
     }
 
       ros::Rate rate(10);

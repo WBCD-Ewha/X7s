@@ -25,24 +25,47 @@ void mat_to_xyzrpy(const Eigen::Matrix4d& pose, std::vector<double>& xyz, std::v
     rpy = {euler[2], euler[1], euler[0]};
 }
 
-void open_grippers(X7StateInterface& controller, ros::NodeHandle& nh, bool is_left) {
-    if (is_left) {
-        std::vector<double> current_left_pose = controller.get_latest_ee_pose(true);
-        controller.set_ee_pose_cmd(nh, true, current_left_pose, 3.0);
-    } else {
-        std::vector<double> current_right_pose = controller.get_latest_ee_pose(false);
-        controller.set_ee_pose_cmd(nh, false, current_right_pose, 3.0);
+void get_current_poses(X7StateInterface& controller,
+                         std::vector<double>& pose,
+                         bool is_left,
+                         int max_wait_count = 50) {
+    ros::Rate wait_rate(10);
+    int wait_count = 0;
+
+    while (wait_count < max_wait_count) {
+        ros::spinOnce();
+        pose = controller.get_latest_ee_pose(is_left);
+
+        bool is_valid = !std::all_of(pose.begin(), pose.end(),
+                                     [](double v) { return std::abs(v) < 1e-5; });
+
+        if (is_valid) break;
+
+        wait_rate.sleep();
+        ++wait_count;
     }
+
+    if (wait_count == max_wait_count) {
+        std::string arm = is_left ? "left" : "right";
+        ROS_WARN_STREAM("Timeout: ee_pose message not received from " << arm << " arm.");
+    }
+
+    std::string arm = is_left ? "Left" : "Right";
+    ROS_INFO_STREAM("Current " << arm << " Pose (x y z r p y):");
+    for (double v : pose) std::cout << v << " ";
+    std::cout << std::endl;
+}
+
+void open_grippers(X7StateInterface& controller, ros::NodeHandle& nh, bool is_left) {
+    std::vector<double> pose;
+    get_current_poses(controller, pose, is_left);
+    controller.set_ee_pose_cmd(nh, is_left, pose, 3.0);
 }
 
 void close_grippers(X7StateInterface& controller, ros::NodeHandle& nh, bool is_left) {
-    if (is_left) {
-        std::vector<double> current_left_pose = controller.get_latest_ee_pose(true);
-        controller.set_ee_pose_cmd(nh, true, current_left_pose, 0.0);
-    } else {
-        std::vector<double> current_right_pose = controller.get_latest_ee_pose(false);
-        controller.set_ee_pose_cmd(nh, false, current_right_pose, 0.0);
-    }
+    std::vector<double> pose;
+    get_current_poses(controller, pose, is_left);
+    controller.set_ee_pose_cmd(nh, is_left, pose, 0.0);
 }
 
 // camera frame -> world frame transformation
@@ -67,8 +90,8 @@ void grasp_and_place(X7StateInterface& controller, ros::NodeHandle& nh, bool is_
    mat_to_xyzrpy(object_pose_world, plate_xyz, plate_rpy);
    mat_to_xyzrpy(goal_pose_world, goal_xyz, goal_rpy);
 
-   std::vector<double> grasp_plate = {plate_xyz[0], plate_xyz[1], plate_xyz[2], plate_rpy[0], plate_rpy[1], plate_rpy[2]};
-   std::vector<double> grasp_goal = {goal_xyz[0], goal_xyz[1], goal_xyz[2], goal_rpy[0], goal_rpy[1], goal_rpy[2]};
+   std::vector<double> grasp_plate = {plate_xyz[0], plate_xyz[1], plate_xyz[2], grasp_quat_rpy[0], grasp_quat_rpy[1], grasp_quat_rpy[2]};
+   std::vector<double> grasp_goal = {goal_xyz[0], goal_xyz[1], goal_xyz[2], goal_quat_rpy[0], goal_quat_rpy[1], goal_quat_rpy[2]};
 
   // TODO: check orientation
   // 1. grasp the plate
@@ -86,8 +109,8 @@ void grasp_and_place(X7StateInterface& controller, ros::NodeHandle& nh, bool is_
   // 7. Goal pose - pitch
   // TODO : check orientation
   Eigen::Matrix3d rot = goal_pose_world.block<3,3>(0,0);
-  Eigen::AngleAxisd y_rot(angle_rad, rot.col(1));
-  Eigen::Matrix3d rotated = y_rot.toRotationMatrix() * rot;
+  Eigen::AngleAxisd x_rot(angle_rad, rot.col(0));
+  Eigen::Matrix3d rotated = x_rot.toRotationMatrix() * rot;
 
   Eigen::Vector3d euler = rotated.eulerAngles(0, 1, 2);  // RPY
   Eigen::Vector3d pos = goal_pose_world.block<3,1>(0,3);
@@ -119,12 +142,12 @@ int main(int argc, char** argv) {
   Eigen::Matrix4d goal_pose_cam = Eigen::Matrix4d::Identity();
   goal_pose_cam(0, 3) = 0.05;  // x
   goal_pose_cam(1, 3) = -0.10;  // y
-  goal_pose_cam(2, 3) = 0.4;  // z
+  goal_pose_cam(2, 3) = 0.35;  // z
 
   // Example rpy orientation (approach)
   // TODO :  check orientation
-  std::vector<double> grasp_quat_rpy = {-1.0, 0.0, -1.0};
-  std::vector<double> goal_quat_rpy = {-1.0, 0.0, -1.0};
+  std::vector<double> grasp_quat_rpy = {-1.5, 0.0, -1.5};
+  std::vector<double> goal_quat_rpy = {-1.5, 0.0, -1.5};
 
   // 4.extrinsic
   // TODO: check Extrinsic
@@ -139,7 +162,7 @@ int main(int argc, char** argv) {
   ROS_INFO_STREAM("Using " << (use_left ? "LEFT" : "RIGHT") << " arm");
 
   // 6. rotate angle
-  double angle_deg = 80.0;
+  double angle_deg = -90.0;
   double angle_rad = angle_deg * M_PI / 180.0;
 
   // 7. processing
