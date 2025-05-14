@@ -73,100 +73,114 @@ Eigen::Matrix4d transform_camera_to_world(const Eigen::Matrix4d& cam_pose, const
     return camera_extrinsic.inverse() * cam_pose;
 }
 
-void grasp_and_place(X7StateInterface& controller, ros::NodeHandle& nh, bool is_left,
+void grasp_plate(X7StateInterface& controller, ros::NodeHandle& nh, bool is_left,
                      const Eigen::Matrix4d& object_pose_cam,
+                     const Eigen::Matrix4d& camera_extrinsic,
+                     const std::vector<double>& grasp_quat_rpy) {
+
+    // cam to world
+    Eigen::Matrix4d object_pose_world = transform_camera_to_world(object_pose_cam, camera_extrinsic);
+
+    // matrix conversion to xyzrpy
+    std::vector<double> plate_xyz, plate_rpy;
+    mat_to_xyzrpy(object_pose_world, plate_xyz, plate_rpy);
+
+    std::vector<double> grasp_plate = {plate_xyz[0], plate_xyz[1], plate_xyz[2], grasp_quat_rpy[0], grasp_quat_rpy[1], grasp_quat_rpy[2]};
+
+    // 1. rpy
+    std::vector<double> current_pose;
+    get_current_poses(controller, current_pose, is_left);
+
+    std::vector<double> ori_only_pose = {
+        current_pose[0], current_pose[1], current_pose[2],
+        grasp_quat_rpy[0], grasp_quat_rpy[1], grasp_quat_rpy[2]
+    };
+    open_grippers(controller, nh, is_left);
+    controller.set_ee_pose_cmd(nh, is_left, ori_only_pose, 3.0);
+
+    // 2. position
+    // TODO: check orientation
+    controller.set_ee_pose_cmd(nh, is_left, grasp_pose, 3.0);
+
+    close_grippers(controller, nh, is_left);
+}
+
+void place_pizza(X7StateInterface& controller, ros::NodeHandle& nh, bool is_left,
                      const Eigen::Matrix4d& goal_pose_cam,
                      const Eigen::Matrix4d& camera_extrinsic,
-                     const std::vector<double>& grasp_quat_rpy,
                      const std::vector<double>& goal_quat_rpy,
                      double angle_rad) {
 
-  // 1. cam to world
-  Eigen::Matrix4d object_pose_world = transform_camera_to_world(object_pose_cam, camera_extrinsic);
-  Eigen::Matrix4d goal_pose_world = transform_camera_to_world(goal_pose_cam, camera_extrinsic);
+    // cam to world
+    Eigen::Matrix4d goal_pose_world = transform_camera_to_world(goal_pose_cam, camera_extrinsic);
 
-   // matrix conversion to xyzrpy
-   std::vector<double> plate_xyz, plate_rpy, goal_xyz, goal_rpy;
-   mat_to_xyzrpy(object_pose_world, plate_xyz, plate_rpy);
-   mat_to_xyzrpy(goal_pose_world, goal_xyz, goal_rpy);
+    // matrix conversion to xyzrpy
+    std::vector<double> goal_xyz, goal_rpy;
+    mat_to_xyzrpy(goal_pose_world, goal_xyz, goal_rpy);
 
-   std::vector<double> grasp_plate = {plate_xyz[0], plate_xyz[1], plate_xyz[2], grasp_quat_rpy[0], grasp_quat_rpy[1], grasp_quat_rpy[2]};
-   std::vector<double> grasp_goal = {goal_xyz[0], goal_xyz[1], goal_xyz[2], goal_quat_rpy[0], goal_quat_rpy[1], goal_quat_rpy[2]};
+    std::vector<double> place_pizza = {goal_xyz[0], goal_xyz[1], goal_xyz[2], goal_quat_rpy[0], goal_quat_rpy[1], goal_quat_rpy[2]};
 
-  // TODO: check orientation
-  // 1. grasp the plate
-  open_grippers(controller, nh, is_left);
-  controller.set_ee_pose_cmd(nh, is_left, grasp_plate, 0.0);
+    // move to goal (place the pizza)
+    // TODO: check orientation
+    controller.set_ee_pose_cmd(nh, is_left, place_pizza, 0.0);
 
-  sleep_sec(1.0);
-
-  close_grippers(controller, nh, is_left);
-
-  // 2. move to goal pose
-  controller.set_ee_pose_cmd(nh, is_left,grasp_goal, 0.0);
-  sleep_sec(1.0);
-
-  // 7. Goal pose - pitch
-  // TODO : check orientation
-  Eigen::Matrix3d rot = goal_pose_world.block<3,3>(0,0);
-  Eigen::AngleAxisd x_rot(angle_rad, rot.col(0));
-  Eigen::Matrix3d rotated = x_rot.toRotationMatrix() * rot;
-
-  Eigen::Vector3d euler = rotated.eulerAngles(0, 1, 2);  // RPY
-  Eigen::Vector3d pos = goal_pose_world.block<3,1>(0,3);
-
-  std::vector<double> rotated_goal_pose = {
-    pos.x(), pos.y(), pos.z(),
-    euler[0], euler[1], euler[2]
-  };
-  controller.set_ee_pose_cmd(nh, is_left, rotated_goal_pose, 0.0);
-
-  // return to obj pose
-  controller.set_ee_pose_cmd(nh, is_left, grasp_plate, 0.0);
-  open_grippers(controller, nh, is_left);
 }
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "pick_and_place_node");
-  ros::NodeHandle nh;
+    ros::init(argc, argv, "pick_and_place_node");
+    ros::NodeHandle nh;
 
-  arx::x7::X7StateInterface controller(nh);
+    arx::x7::X7StateInterface controller(nh);
 
-  // 1. grasp pose
-  Eigen::Matrix4d object_pose_cam = Eigen::Matrix4d::Identity();
-  object_pose_cam(0, 3) = 0.05;  // x
-  object_pose_cam(1, 3) = 0.10;  // y
-  object_pose_cam(2, 3) = 0.20;  // z  //TODO
+    // left : -0.44, -0.691, 0.0943, -0.00157, 1.32, 1.51, -0.44
+    // right : 0.44, 0.691, 0.0943, -0.189, -1.32, -1.51, 0.44
 
-  // 2. Goal pose
-  Eigen::Matrix4d goal_pose_cam = Eigen::Matrix4d::Identity();
-  goal_pose_cam(0, 3) = 0.05;  // x
-  goal_pose_cam(1, 3) = -0.10;  // y
-  goal_pose_cam(2, 3) = 0.35;  // z
+    // test
+    std::vector<double> test_pos_left = {-0.44, -0.691, 0.0943, -0.00157, 1.32, 1.51, -0.44};
+    //std::vector<double> test_pos_right = {0.44, 0.691, 0.0943, -0.189, -1.32, -1.51, 0.44};
 
-  // Example rpy orientation (approach)
-  // TODO :  check orientation
-  std::vector<double> grasp_quat_rpy = {-1.5, 0.0, -1.5};
-  std::vector<double> goal_quat_rpy = {-1.5, 0.0, -1.5};
+    controller.set_ee_pose_cmd(nh, is_left, test_pos_left, 0.0);
 
-  // 4.extrinsic
-  // TODO: check Extrinsic
-  Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity();
+    std::vector<double> current_left_pose
+    get_current_poses(controller, current_left_pose, true);
 
-  // 5. choose arm
-  Eigen::Matrix4d cam_T_world = camera_extrinsic.inverse();
-  Eigen::Matrix4d object_pose_world = Eigen::Matrix4d(cam_T_world) * object_pose_cam;
-  Eigen::Vector3d obj_pos = object_pose_world.block<3,1>(0,3);
-  bool use_left = obj_pos.y() > 0;
+//
+//    // 1. grasp pose
+//    Eigen::Matrix4d object_pose_cam = Eigen::Matrix4d::Identity();
+//    object_pose_cam(0, 3) = 0.05;  // x
+//    object_pose_cam(1, 3) = 0.10;  // y
+//    object_pose_cam(2, 3) = 0.10;  // z  //TODO
+//
+//    // 2. Goal pose
+//    Eigen::Matrix4d goal_pose_cam = Eigen::Matrix4d::Identity();
+//    goal_pose_cam(0, 3) = 0.05;  // x
+//    goal_pose_cam(1, 3) = -0.10;  // y
+//    goal_pose_cam(2, 3) = 0.35;  // z
+//
+//    // Example rpy orientation (approach)
+//    // TODO :  check orientation
+//    std::vector<double> grasp_quat_rpy = {-2.646,  0.042, -2.277};
+//    std::vector<double> goal_quat_rpy = {-2.646,  0.042, -2.277};
+//
+//    // 4.extrinsic
+//    // TODO: check Extrinsic
+//    Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity();
+//
+//    // 5. choose arm
+//    Eigen::Matrix4d cam_T_world = camera_extrinsic.inverse();
+//    Eigen::Matrix4d object_pose_world = Eigen::Matrix4d(cam_T_world) * object_pose_cam;
+//    Eigen::Vector3d obj_pos = object_pose_world.block<3,1>(0,3);
+//    bool use_left = obj_pos.y() > 0;
+//
+//    ROS_INFO_STREAM("Using " << (use_left ? "LEFT" : "RIGHT") << " arm");
+//
+//    // 6. rotate angle
+//    double angle_deg = -90.0;
+//    double angle_rad = angle_deg * M_PI / 180.0;
+//
+//    // 7. processing
+//    grasp_plate(controller, nh, use_left, object_pose_cam, camera_extrinsic, grasp_quat_rpy);
+//    place_pizza(controller, nh, use_left, goal_pose_cam, camera_extrinsic, goal_quat_rpy, angle_rad)
 
-  ROS_INFO_STREAM("Using " << (use_left ? "LEFT" : "RIGHT") << " arm");
-
-  // 6. rotate angle
-  double angle_deg = -90.0;
-  double angle_rad = angle_deg * M_PI / 180.0;
-
-  // 7. processing
-  grasp_and_place(controller, nh, use_left, object_pose_cam, goal_pose_cam, camera_extrinsic, grasp_quat_rpy, goal_quat_rpy, use_left ? angle_rad : -angle_rad);
-
-  return 0;
+    return 0;
 }
