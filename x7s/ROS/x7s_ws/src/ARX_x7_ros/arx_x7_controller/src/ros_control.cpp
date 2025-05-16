@@ -61,9 +61,6 @@ namespace arx::x7 {
     return joint_info;
 }
 
-
-
-
     // End-effector pose control
     void X7StateInterface::set_ee_pose_cmd(ros::NodeHandle& nh, bool is_left, const std::vector<double>& pose_xyzrpy, double gripper) {
       std::string topic_name = is_left ? "/ARX_VR_L" : "/ARX_VR_R";

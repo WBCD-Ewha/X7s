@@ -31,6 +31,12 @@ def visualize(pcd, upper_pcd, lid_center, left_pose, right_pose):
         left_grasp_frame, right_grasp_frame
     ])
 
+def align_grasp_pose(grasp1, grasp2):
+    if grasp1[0] < grasp2[0]:
+        return grasp1, grasp2 # left right
+    else:
+        return grasp2, grasp1
+
 def estimate_lid_grasp_poses(pcd: o3d.geometry.PointCloud, hinge_offset=0.06):
     """
     Estimate left/right gripper poses to grasp the lid of a container.
@@ -80,10 +86,10 @@ def estimate_lid_grasp_poses(pcd: o3d.geometry.PointCloud, hinge_offset=0.06):
     left_point += offset_vec
     right_point += offset_vec
 
-    # 10. grasp pose 생성 (아래 → 위 방향)
-    approach = np.array([0, 0, 1])
-    left_pose = grasp_hanging_cloth_pose(left_point, approach)
-    right_pose = grasp_hanging_cloth_pose(right_point, approach)
+    left_point, right_point = align_grasp_pose(left_point, right_point)
+
+    left_pose = transform_matrix(left_point)
+    right_pose = transform_matrix(right_point)
 
     # 10. 시각화 실행
     upper_pcd = pcd.select_by_index(non_bottom_indices)

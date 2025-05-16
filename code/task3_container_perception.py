@@ -92,6 +92,12 @@ def get_pcd_center(pcd: o3d.geometry.PointCloud) -> np.ndarray:
     center = np.mean(points, axis=0)
     return center
 
+def align_grasp_pose(grasp1, grasp2):
+    if grasp1[0] < grasp2[0]:
+        return grasp1, grasp2 # left right
+    else:
+        return grasp2, grasp1
+
 def find_lid_grasp_pose(pcd, lid_center_3d, hinge_offset):
     # TODO: solve the problem of long and short axis
     points = np.asarray(pcd.points)
@@ -106,6 +112,8 @@ def find_lid_grasp_pose(pcd, lid_center_3d, hinge_offset):
     left_grasp = lid_center_3d - gripper_y * hinge_offset
     right_grasp = lid_center_3d + gripper_y * hinge_offset
 
+    left_grasp, right_grasp = align_grasp_pose(left_grasp, right_grasp)
+
     return left_grasp, right_grasp, long_axis, short_axis
 
 def close_lid_grasp(left_grasp, right_grasp, lid_center_3d, container_center_3d, container_height=0.4):
@@ -118,6 +126,8 @@ def close_lid_grasp(left_grasp, right_grasp, lid_center_3d, container_center_3d,
     new_right_grasp_pose = np.array([
         new_right_grasp_xy[0], new_right_grasp_xy[1], container_height
     ])
+
+    new_left_grasp_pose, new_right_grasp_pose = align_grasp_pose(new_left_grasp_pose, new_right_grasp_pose)
 
     return new_left_grasp_pose, new_right_grasp_pose
 

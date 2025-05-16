@@ -23,9 +23,6 @@ def find_center(mask: np.ndarray):
     return np.array([cx, cy]), largest_contour
 
 def compute_intersection(p1: np.ndarray, p2: np.ndarray, q1: np.ndarray, q2: np.ndarray):
-    """
-    선분 p1-p2와 q1-q2의 교차점을 계산. 평행하거나 선분 외부에서 교차하면 None 반환.
-    """
     A = np.array([[p2[0] - p1[0], q1[0] - q2[0]],
                   [p2[1] - p1[1], q1[1] - q2[1]]])
     b = np.array([q1[0] - p1[0], q1[1] - p1[1]])
@@ -82,7 +79,7 @@ def visualize_3d(pcd, mapped_point):
     grasp_pose = transform_matrix(mapped_point)
     grasp_pose_frame = create_coordinate_frame(grasp_pose, size=0.05)
 
-    print("Grasp Point :\n", grasp_pose_frame)
+    print("Grasp Point :\n", grasp_pose)
 
     # 시각화
     o3d.visualization.draw_geometries([
@@ -95,6 +92,8 @@ def visualize_contact_3d(pcd, grasp_3d, new_grasp_pose):
     new_grasp_pose = transform_matrix(new_grasp_pose)
     curr_grasp_frame = create_coordinate_frame(grasp_3d, size=0.05)
     goal_grasp_frame = create_coordinate_frame(new_grasp_pose, size=0.05)
+
+    print("New Grasp Point :\n", new_grasp_pose)
 
     o3d.visualization.draw_geometries([pcd, curr_grasp_frame, goal_grasp_frame], window_name="Grasp Pose in 3D")
 
@@ -142,15 +141,15 @@ def main():
     pcd = generate_point_cloud_2(rgb, depth, mask1, mask2, depth_K, color_K, R, t)
 
     # find plate grasp pose
-    grasp_3d = point_mapper(grasp_point, pcd)
+    grasp_pose = point_mapper(grasp_point, pcd)
     entry_3d = point_mapper(nearest_point, pcd)
     edge_3d = point_mapper(intersection_pt, pcd)
 
-    visualize_3d(pcd, grasp_3d)
+    visualize_3d(pcd, grasp_pose)
 
     # find
-    new_grasp_pose = find_contact_point(grasp_3d, entry_3d, edge_3d, container_height=0.4)
-    visualize_contact_3d(pcd, grasp_3d, new_grasp_pose)
+    new_grasp_pose = find_contact_point(grasp_pose, entry_3d, edge_3d, container_height=0.4)
+    visualize_contact_3d(pcd, grasp_pose, new_grasp_pose)
 
 if __name__ == "__main__":
     main()

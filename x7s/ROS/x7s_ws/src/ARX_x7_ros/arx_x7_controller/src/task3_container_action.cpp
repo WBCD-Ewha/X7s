@@ -159,8 +159,8 @@ void close_container(X7StateInterface& controller, ros::NodeHandle& nh, const Ei
     close_grippers(controller, nh);
 
     // move up a little bit
-    left_grasp[2] -= pick_up_height;
-    right_grasp[2] -= pick_up_height;
+    left_grasp[2] -= push_height;
+    right_grasp[2] -= push_height;
     std::thread lift_left(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), true, left_grasp, 0.0);
     std::thread lift_right(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), false, right_grasp, 0.0);
     lift_left.join();

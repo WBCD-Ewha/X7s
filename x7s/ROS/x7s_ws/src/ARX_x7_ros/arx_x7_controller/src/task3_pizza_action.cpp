@@ -100,7 +100,7 @@ void grasp_plate(X7StateInterface& controller, ros::NodeHandle& nh, bool is_left
 
     // 2. position
     // TODO: check orientation
-    controller.set_ee_pose_cmd(nh, is_left, grasp_pose, 3.0);
+    controller.set_ee_pose_cmd(nh, is_left, grasp_plate, 3.0);
 
     close_grippers(controller, nh, is_left);
 }
@@ -136,51 +136,51 @@ int main(int argc, char** argv) {
     // right : 0.44, 0.691, 0.0943, -0.189, -1.32, -1.51, 0.44
 
     // test
-    std::vector<double> test_pos_left = {-0.44, -0.691, 0.0943, -0.00157, 1.32, 1.51, -0.44};
-    //std::vector<double> test_pos_right = {0.44, 0.691, 0.0943, -0.189, -1.32, -1.51, 0.44};
+//    std::vector<double> test_pos_left = {-0.44, -0.691, 0.0943, -0.00157, 1.32, 1.51, -0.44};
+//    std::vector<double> test_pos_right = {0.44, 0.691, 0.0943, -0.189, -1.32, -1.51, 0.44};
+//
+//    controller.set_ee_pose_cmd(nh, is_left, test_pos_left, 0.0);
+//
+//    std::vector<double> current_left_pose
+//    get_current_poses(controller, current_left_pose, true);
 
-    controller.set_ee_pose_cmd(nh, is_left, test_pos_left, 0.0);
 
-    std::vector<double> current_left_pose
-    get_current_poses(controller, current_left_pose, true);
+    // 1. grasp pose
+    Eigen::Matrix4d object_pose_cam = Eigen::Matrix4d::Identity();
+    object_pose_cam(0, 3) = 0.05;  // x
+    object_pose_cam(1, 3) = 0.10;  // y
+    object_pose_cam(2, 3) = 0.10;  // z  //TODO
 
-//
-//    // 1. grasp pose
-//    Eigen::Matrix4d object_pose_cam = Eigen::Matrix4d::Identity();
-//    object_pose_cam(0, 3) = 0.05;  // x
-//    object_pose_cam(1, 3) = 0.10;  // y
-//    object_pose_cam(2, 3) = 0.10;  // z  //TODO
-//
-//    // 2. Goal pose
-//    Eigen::Matrix4d goal_pose_cam = Eigen::Matrix4d::Identity();
-//    goal_pose_cam(0, 3) = 0.05;  // x
-//    goal_pose_cam(1, 3) = -0.10;  // y
-//    goal_pose_cam(2, 3) = 0.35;  // z
-//
-//    // Example rpy orientation (approach)
-//    // TODO :  check orientation
-//    std::vector<double> grasp_quat_rpy = {-2.646,  0.042, -2.277};
-//    std::vector<double> goal_quat_rpy = {-2.646,  0.042, -2.277};
-//
-//    // 4.extrinsic
-//    // TODO: check Extrinsic
-//    Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity();
-//
-//    // 5. choose arm
-//    Eigen::Matrix4d cam_T_world = camera_extrinsic.inverse();
-//    Eigen::Matrix4d object_pose_world = Eigen::Matrix4d(cam_T_world) * object_pose_cam;
-//    Eigen::Vector3d obj_pos = object_pose_world.block<3,1>(0,3);
-//    bool use_left = obj_pos.y() > 0;
-//
-//    ROS_INFO_STREAM("Using " << (use_left ? "LEFT" : "RIGHT") << " arm");
-//
-//    // 6. rotate angle
-//    double angle_deg = -90.0;
-//    double angle_rad = angle_deg * M_PI / 180.0;
-//
-//    // 7. processing
-//    grasp_plate(controller, nh, use_left, object_pose_cam, camera_extrinsic, grasp_quat_rpy);
-//    place_pizza(controller, nh, use_left, goal_pose_cam, camera_extrinsic, goal_quat_rpy, angle_rad)
+    // 2. Goal pose
+    Eigen::Matrix4d goal_pose_cam = Eigen::Matrix4d::Identity();
+    goal_pose_cam(0, 3) = 0.05;  // x
+    goal_pose_cam(1, 3) = -0.10;  // y
+    goal_pose_cam(2, 3) = 0.35;  // z
+
+    // Example rpy orientation (approach)
+    // TODO :  check orientation
+    std::vector<double> grasp_quat_rpy = {-2.646,  0.042, -2.277};
+    std::vector<double> goal_quat_rpy = {-2.646,  0.042, -2.277};
+
+    // 4.extrinsic
+    // TODO: check Extrinsic
+    Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity();
+
+    // 5. choose arm
+    Eigen::Matrix4d cam_T_world = camera_extrinsic.inverse();
+    Eigen::Matrix4d object_pose_world = Eigen::Matrix4d(cam_T_world) * object_pose_cam;
+    Eigen::Vector3d obj_pos = object_pose_world.block<3,1>(0,3);
+    bool use_left = obj_pos.x() < 0;
+
+    ROS_INFO_STREAM("Using " << (use_left ? "LEFT" : "RIGHT") << " arm");
+
+    // 6. rotate angle
+    double angle_deg = -90.0;
+    double angle_rad = angle_deg * M_PI / 180.0;
+
+    // 7. processing
+    grasp_plate(controller, nh, use_left, object_pose_cam, camera_extrinsic, grasp_quat_rpy);
+    place_pizza(controller, nh, use_left, goal_pose_cam, camera_extrinsic, goal_quat_rpy, angle_rad);
 
     return 0;
 }
