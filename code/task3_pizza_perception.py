@@ -9,7 +9,7 @@ from util import (
     depth_K, color_K, R, t
 )
 from mapper import point_mapper
-from ros_sender import send_single_pose
+from ros_sender import send_single_pose, send_moved_single_pose
 
 
 def find_center(mask: np.ndarray):
@@ -164,7 +164,7 @@ def main():
     new_grasp_pose = find_contact_point(grasp_pose, entry_3d, edge_3d, container_height=0.4)
     visualize_contact_3d(pcd, grasp_pose, new_grasp_pose)
 
-    send_single_pose(grasp_pose, is_left)
+    send_moved_single_pose(grasp_pose, is_left)
 
 
 if __name__ == "__main__":

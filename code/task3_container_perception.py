@@ -8,7 +8,7 @@ from util import (
     container_close_path, container_close_depth_path, container_close_lid_path, container_close_container_path,
     depth_K, color_K, R, t
 )
-from ros_sender import send_bimanual_pose
+from ros_sender import send_bimanual_pose, send_bimanual_close_pose
 
 # remove outlier
 def cut_outlier(pcd: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
@@ -156,7 +156,7 @@ def main():
     new_left_grasp, new_right_grasp = close_lid_grasp(left_grasp, right_grasp, lid_center_3d, container_center_3d)
     visualize_close_3d(pcd, container_center_3d, lid_center_3d, new_left_grasp, new_right_grasp)
 
-    send_bimanual_pose(new_left_grasp, new_right_grasp)
+    send_bimanual_close_pose(new_left_grasp, new_right_grasp)
 
 if __name__ == "__main__":
     main()

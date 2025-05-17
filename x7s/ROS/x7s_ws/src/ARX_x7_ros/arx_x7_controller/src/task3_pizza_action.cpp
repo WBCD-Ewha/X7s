@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
     grasp_plate(controller, nh, is_left, object_pose_cam, camera_extrinsic, grasp_quat_rpy);
 
     // Goal pose
-    std::pair<bool, std::vector<double>> result_new = controller.get_single_grasp_pose();
+    std::pair<bool, std::vector<double>> result_new = controller.get_single_moved_grasp_pose();
     is_left = result_new.first;
     std::vector<double> grasp_xyz_new = result_new.second;
 

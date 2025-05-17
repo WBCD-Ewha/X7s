@@ -201,7 +201,7 @@ int main(int argc, char** argv) {
     // closing pose
 
     std::vector<double> left_new, right_new;
-    std::tie(left_new, right_new) = controller.get_bimanual_grasp_pose();
+    std::tie(left_new, right_new) = controller.get_bimanual_close_grasp_pose();
     Eigen::Matrix4d left_container_pose = Eigen::Matrix4d::Identity();
     left_container_pose(0, 3) = left_new[0];  // x
     left_container_pose(1, 3) = left_new[1];  // y

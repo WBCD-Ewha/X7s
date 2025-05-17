@@ -19,11 +19,41 @@ def send_bimanual_pose(left_pose, right_pose):
     except rospy.ServiceException as e:
         rospy.logerr(f"Service call failed: {e}")
 
+# task3_container_close
+def send_bimanual_close_pose(left_pose, right_pose):
+    rospy.wait_for_service('/send_bimanual_close_pose')
+    try:
+        service_proxy = rospy.ServiceProxy('/send_bimanual_close_pose', Pose3D)
+        left_xyz = left_pose[:3, 3].tolist()
+        right_xyz = right_pose[:3, 3].tolist()
+        req = Pose3DRequest(left_xyz=left_xyz, right_xyz=right_xyz)
+        resp = service_proxy(req)
+        if resp.success:
+            rospy.loginfo("Bimanual close poses sent successfully.")
+        else:
+            rospy.logwarn("Service call failed.")
+    except rospy.ServiceException as e:
+        rospy.logerr(f"Service call failed: {e}")
+
 #single
 def send_single_pose(single_pose, is_left):
     rospy.wait_for_service('/send_single_pose')
     try:
         service_proxy = rospy.ServiceProxy('/send_single_pose', SinglePose)
+        single_xyz = single_pose[:3, 3].tolist()
+        req = SinglePoseRequest(single_xyz=single_xyz, is_left=is_left)
+        resp = service_proxy(req)
+        if resp.success:
+            rospy.loginfo(f"{'LEFT' if is_left else 'RIGHT'} Grasp pose sent successfully.")
+        else:
+            rospy.logwarn("Service call failed.")
+    except rospy.ServiceException as e:
+        rospy.logerr(f"Service call failed: {e}")
+
+def send_moved_single_pose(single_pose, is_left):
+    rospy.wait_for_service('/send_moved_single_pose')
+    try:
+        service_proxy = rospy.ServiceProxy('/send_moved_single_pose', SinglePose)
         single_xyz = single_pose[:3, 3].tolist()
         req = SinglePoseRequest(single_xyz=single_xyz, is_left=is_left)
         resp = service_proxy(req)

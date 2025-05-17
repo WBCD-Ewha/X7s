@@ -38,16 +38,22 @@ public:
   std::vector<double> left_grasp_xyz;
   std::vector<double> right_grasp_xyz;
   bool single_grasp_received = false;
+  bool single_moved_grasp_received = false; // task3 pizza
   bool bimanual_grasp_received = false;
+  bool bimanual_close_grasp_received = false; // task3 close container
   bool single_grasp_is_left = false;
 
   // get pose
   bool singlePoseCallback(arx_x7_controller::SinglePose::Request& req, arx_x7_controller::SinglePose::Response& res);
+  bool singleMovedPoseCallback(arx_x7_controller::SinglePose::Request& req, arx_x7_controller::SinglePose::Response& res);
   bool bimanualPoseCallback(arx_x7_controller::Pose3D::Request& req, arx_x7_controller::Pose3D::Response& res);
+  bool bimanualClosePoseCallback(arx_x7_controller::Pose3D::Request& req, arx_x7_controller::Pose3D::Response& res);
 
   // Getter
   std::pair<bool, std::vector<double>> get_single_grasp_pose();
+  std::pair<bool, std::vector<double>> get_single_moved_grasp_pose();
   std::pair<std::vector<double>, std::vector<double>> get_bimanual_grasp_pose();
+  std::pair<std::vector<double>, std::vector<double>> get_bimanual_close_grasp_pose();
 
 private:
   ros::Subscriber joint_info_sub_left;
@@ -61,6 +67,8 @@ private:
   arm_control::PosCmd latest_ee_pose_right;
 
   ros::ServiceServer single_service;
+  ros::ServiceServer single_moved_service;
   ros::ServiceServer bimanual_service;
+  ros::ServiceServer bimanual_close_service;
 };
 }
