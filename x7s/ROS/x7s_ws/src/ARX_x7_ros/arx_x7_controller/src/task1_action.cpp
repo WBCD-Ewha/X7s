@@ -132,8 +132,8 @@ void grasp_cloth(X7StateInterface& controller, ros::NodeHandle& nh, const Eigen:
     lift_right.join();
 }
 
-void stretch_cloth(X7StateInterface& controller, ros::NodeHandle& nh, double max_torque_threshold = 1.2, double step_size = 0.02) {
-    //while (ros::ok()) {
+void stretch_cloth_force(X7StateInterface& controller, ros::NodeHandle& nh, double max_torque_threshold = 1.2, double step_size = 0.02) {
+    while (ros::ok()) {
         std::vector<double> left_pose = controller.get_latest_ee_pose(true);
         std::vector<double> right_pose = controller.get_latest_ee_pose(false);
         std::vector<double> left_joint = controller.get_latest_joint_info(true);
@@ -163,6 +163,32 @@ void stretch_cloth(X7StateInterface& controller, ros::NodeHandle& nh, double max
         for (auto& val : left_torque) if (val > max_torque_threshold) over_threshold = true;
         for (auto& val : right_torque) if (val > max_torque_threshold) over_threshold = true;
         //if (over_threshold) break;
+
+        left_pose[1] += step_size;
+        right_pose[1] -= step_size;
+
+        std::thread left_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), true, left_pose, 0.0);
+        std::thread right_thread(&X7StateInterface::set_ee_pose_cmd, &controller, std::ref(nh), false, right_pose, 0.0);
+        left_thread.join();
+        right_thread.join();
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+
+}
+
+void stretch_cloth_manual(X7StateInterface& controller, ros::NodeHandle& nh, double step_size = 0.08) {
+    //while (ros::ok()) {
+        std::vector<double> left_pose = controller.get_latest_ee_pose(true);
+        std::vector<double> right_pose = controller.get_latest_ee_pose(false);
+
+        ROS_INFO("left current pose: ");
+        for (auto val : left_pose) std::cout << val << " ";
+        std::cout << std::endl;
+
+        ROS_INFO("right current pose: ");
+        for (auto val : right_pose) std::cout << val << " ";
+        std::cout << std::endl;
 
         left_pose[1] += step_size;
         right_pose[1] -= step_size;
@@ -265,7 +291,7 @@ int main(int argc, char** argv) {
     
     
     grasp_cloth(controller, nh, left_cam_pose, right_cam_pose, camera_extrinsic, left_quat_rpy, right_quat_rpy, pick_up_height);
-    //stretch_cloth(controller, nh, 1.2, 0.08);  // TODO: max torque 조정
+    stretch_cloth_manual(controller, nh, 0.08);  // TODO: stretch 값 정하기
 
     std::vector<double> left_fling_pose = {0.25, 0.10, 0.226, 0.0, 0.0, 0.0, 0.0};   // TODO: 적절히 조정
     std::vector<double> right_fling_pose = {0.25, -0.10, 0.226, 0.0, 0.0, 0.0, 0.0};   // TODO: 적절히 조정
