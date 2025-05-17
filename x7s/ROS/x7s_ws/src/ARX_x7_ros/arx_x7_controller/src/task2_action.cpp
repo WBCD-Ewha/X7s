@@ -175,15 +175,17 @@ int main(int argc, char** argv) {
   arx::x7::X7StateInterface controller(nh);
 
   // 1. grasp pose
+  std::vector<double> left, right;
+  std::tie(left, right) = controller.get_bimanual_grasp_pose();
   Eigen::Matrix4d left_grasp_pose = Eigen::Matrix4d::Identity();
-  left_grasp_pose(0, 3) = 0.05;  // x
-  left_grasp_pose(1, 3) = 0.05;  // y
-  left_grasp_pose(2, 3) = 0.01;  // z
+  left_grasp_pose(0, 3) = left[0];
+  left_grasp_pose(1, 3) = left[1];
+  left_grasp_pose(2, 3) = left[2];
 
   Eigen::Matrix4d right_grasp_pose = Eigen::Matrix4d::Identity();
-  right_grasp_pose(0, 3) = 0.05;  // x
-  right_grasp_pose(1, 3) = -0.05;  // y
-  right_grasp_pose(2, 3) = 0.01;  // z
+  right_grasp_pose(0, 3) = right[0];
+  right_grasp_pose(1, 3) = right[1];
+  right_grasp_pose(2, 3) = right[2];
 
 
   // 3. Example rpy orientation (approach)

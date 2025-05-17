@@ -1,3 +1,4 @@
+import rospy
 from generate_pt import generate_point_cloud, generate_point_cloud_2, load_images_2
 import open3d as o3d
 import cv2
@@ -8,6 +9,7 @@ from util import (
     depth_K, color_K, R, t
 )
 from mapper import point_mapper
+from ros_sender import send_single_pose
 
 
 def find_center(mask: np.ndarray):
@@ -86,7 +88,6 @@ def visualize_3d(pcd, mapped_point):
         pcd, grasp_pose_frame
     ])
 
-
 def visualize_contact_3d(pcd, grasp_3d, new_grasp_pose):
     grasp_3d = transform_matrix(grasp_3d)
     new_grasp_pose = transform_matrix(new_grasp_pose)
@@ -134,7 +135,15 @@ def find_contact_point(grasp_3d, entry_3d, edge_3d, container_height=0.4):
     ])
     return new_grasp_pose
 
+def align_grasp_pose(grasp):
+    if grasp[0] > 0:
+        return False
+    else:
+        return True
+
 def main():
+    rospy.init_node("pizza_pose_estimator")
+
     rgb, depth, mask1, mask2 = load_images_2(pizza_grasp_path, pizza_grasp_depth_path, pizza_grasp_plate_path, pizza_grasp_container_path)
     grasp_point, nearest_point, container_center, plate_center, intersection_pt = plate_grasp_2d(rgb, mask1, mask2)
 
@@ -145,11 +154,18 @@ def main():
     entry_3d = point_mapper(nearest_point, pcd)
     edge_3d = point_mapper(intersection_pt, pcd)
 
+    is_left = align_grasp_pose(grasp_pose)
+
     visualize_3d(pcd, grasp_pose)
+
+    send_single_pose(grasp_pose,is_left)
 
     # find
     new_grasp_pose = find_contact_point(grasp_pose, entry_3d, edge_3d, container_height=0.4)
     visualize_contact_3d(pcd, grasp_pose, new_grasp_pose)
+
+    send_single_pose(grasp_pose, is_left)
+
 
 if __name__ == "__main__":
     main()

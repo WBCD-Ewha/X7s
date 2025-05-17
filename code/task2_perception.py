@@ -1,9 +1,9 @@
-from cloth_tools.annotation.grasp_annotation import grasp_hanging_cloth_pose
-
+import rospy
 from generate_pt import load_images, generate_point_cloud
 import open3d as o3d
 import cv2
 import numpy as np
+from ros_sender import send_bimanual_pose
 
 from util import (
     transform_matrix, create_coordinate_frame, create_sphere, pca,
@@ -96,11 +96,18 @@ def estimate_lid_grasp_poses(pcd: o3d.geometry.PointCloud, hinge_offset=0.06):
 
     visualize(pcd, upper_pcd, lid_center, left_pose, right_pose)
 
+    return left_pose, right_pose
+
 def main():
+    rospy.init_node("lid_grasp_pose_estimator")
+
     rgb, depth, mask = load_images(container_open_path, container_open_depth_path, container_open_mask_path)
     pcd = generate_point_cloud(rgb, depth, mask, depth_K, color_K, R, t)
 
-    estimate_lid_grasp_poses(pcd, hinge_offset = 0.06)
+    left_pose, right_pose = estimate_lid_grasp_poses(pcd, hinge_offset = 0.06)
+    send_bimanual_pose(left_pose, right_pose)
+
+
 
 if __name__ == "__main__":
     main()

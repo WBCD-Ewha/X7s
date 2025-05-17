@@ -17,8 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
   FILES
   Pose3D.srv
-  LeftPose.srv
-  RightPose.srv
+  SinglePose.srv
 )
 
 #add_message_files(

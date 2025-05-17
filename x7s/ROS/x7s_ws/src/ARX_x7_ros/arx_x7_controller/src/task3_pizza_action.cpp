@@ -146,16 +146,14 @@ int main(int argc, char** argv) {
 
 
     // 1. grasp pose
-    Eigen::Matrix4d object_pose_cam = Eigen::Matrix4d::Identity();
-    object_pose_cam(0, 3) = 0.05;  // x
-    object_pose_cam(1, 3) = 0.10;  // y
-    object_pose_cam(2, 3) = 0.10;  // z  //TODO
+    std::pair<bool, std::vector<double>> result = controller.get_single_grasp_pose();
+    bool is_left = result.first;
+    std::vector<double> grasp_xyz = result.second;
 
-    // 2. Goal pose
-    Eigen::Matrix4d goal_pose_cam = Eigen::Matrix4d::Identity();
-    goal_pose_cam(0, 3) = 0.05;  // x
-    goal_pose_cam(1, 3) = -0.10;  // y
-    goal_pose_cam(2, 3) = 0.35;  // z
+    Eigen::Matrix4d object_pose_cam = Eigen::Matrix4d::Identity();
+    object_pose_cam(0, 3) = grasp_xyz[0];  // x
+    object_pose_cam(1, 3) = grasp_xyz[1];  // y
+    object_pose_cam(2, 3) = grasp_xyz[2];  // z  //TODO
 
     // Example rpy orientation (approach)
     // TODO :  check orientation
@@ -166,21 +164,24 @@ int main(int argc, char** argv) {
     // TODO: check Extrinsic
     Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity();
 
-    // 5. choose arm
-    Eigen::Matrix4d cam_T_world = camera_extrinsic.inverse();
-    Eigen::Matrix4d object_pose_world = Eigen::Matrix4d(cam_T_world) * object_pose_cam;
-    Eigen::Vector3d obj_pos = object_pose_world.block<3,1>(0,3);
-    bool use_left = obj_pos.x() < 0;
-
-    ROS_INFO_STREAM("Using " << (use_left ? "LEFT" : "RIGHT") << " arm");
-
     // 6. rotate angle
     double angle_deg = -90.0;
     double angle_rad = angle_deg * M_PI / 180.0;
 
     // 7. processing
-    grasp_plate(controller, nh, use_left, object_pose_cam, camera_extrinsic, grasp_quat_rpy);
-    place_pizza(controller, nh, use_left, goal_pose_cam, camera_extrinsic, goal_quat_rpy, angle_rad);
+    grasp_plate(controller, nh, is_left, object_pose_cam, camera_extrinsic, grasp_quat_rpy);
+
+    // Goal pose
+    std::pair<bool, std::vector<double>> result_new = controller.get_single_grasp_pose();
+    is_left = result_new.first;
+    std::vector<double> grasp_xyz_new = result_new.second;
+
+    Eigen::Matrix4d goal_pose_cam = Eigen::Matrix4d::Identity();
+    goal_pose_cam(0, 3) = grasp_xyz_new[0];  // x
+    goal_pose_cam(1, 3) = grasp_xyz_new[1];  // y
+    goal_pose_cam(2, 3) = grasp_xyz_new[2];  // z
+
+    place_pizza(controller, nh, is_left, goal_pose_cam, camera_extrinsic, goal_quat_rpy, angle_rad);
 
     return 0;
 }

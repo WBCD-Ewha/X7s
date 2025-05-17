@@ -1,4 +1,5 @@
 from generate_pt import load_images, generate_point_cloud, generate_point_cloud_2, load_images_2
+import rospy
 import open3d as o3d
 import cv2
 import numpy as np
@@ -7,6 +8,7 @@ from util import (
     container_close_path, container_close_depth_path, container_close_lid_path, container_close_container_path,
     depth_K, color_K, R, t
 )
+from ros_sender import send_bimanual_pose
 
 # remove outlier
 def cut_outlier(pcd: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
@@ -132,6 +134,8 @@ def close_lid_grasp(left_grasp, right_grasp, lid_center_3d, container_center_3d,
     return new_left_grasp_pose, new_right_grasp_pose
 
 def main():
+    rospy.init_node("container_pose_estimator")
+
     rgb, depth, mask1, mask2 = load_images_2(container_close_path, container_close_depth_path, container_close_container_path, container_close_lid_path)
 
     pcd = generate_point_cloud_2(rgb, depth, mask1, mask2, depth_K, color_K, R, t)
@@ -145,8 +149,14 @@ def main():
     left_grasp, right_grasp, long_axis, short_axis = find_lid_grasp_pose(pcd, lid_center_3d, hinge_offset=0.06)
     visualize_3d(pcd, container_center_3d, lid_center_3d, left_grasp, right_grasp, long_axis, short_axis)
 
+    send_bimanual_pose(left_grasp, right_grasp)
+
+    rospy.sleep(2.0)
+
     new_left_grasp, new_right_grasp = close_lid_grasp(left_grasp, right_grasp, lid_center_3d, container_center_3d)
     visualize_close_3d(pcd, container_center_3d, lid_center_3d, new_left_grasp, new_right_grasp)
+
+    send_bimanual_pose(new_left_grasp, new_right_grasp)
 
 if __name__ == "__main__":
     main()

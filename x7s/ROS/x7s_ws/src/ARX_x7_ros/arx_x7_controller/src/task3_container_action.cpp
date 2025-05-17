@@ -173,18 +173,20 @@ int main(int argc, char** argv) {
 
     arx::x7::X7StateInterface controller(nh);
 
-
     // TODO: 실제 값으로 대체 (ros service 이용해서 perception node한테서 받기)
     // lid grasp pose
+    std::vector<double> left, right;
+    std::tie(left, right) = controller.get_bimanual_grasp_pose();
+
     Eigen::Matrix4d left_cam_pose = Eigen::Matrix4d::Identity();
-    left_cam_pose(0, 3) = 0.05;  // x
-    left_cam_pose(1, 3) = 0.0;  // y
-    left_cam_pose(2, 3) = 0.10;  // z  //TODO
+    left_cam_pose(0, 3) = left[0];
+    left_cam_pose(1, 3) = left[1];
+    left_cam_pose(2, 3) = left[2];
 
     Eigen::Matrix4d right_cam_pose = Eigen::Matrix4d::Identity();
-    right_cam_pose(0, 3) = 0.05;  // x
-    right_cam_pose(1, 3) = 0.0;  // y
-    right_cam_pose(2, 3) = 0.10;  // z
+    right_cam_pose(0, 3) = right[0];
+    right_cam_pose(1, 3) = right[1];
+    right_cam_pose(2, 3) = right[2];
 
     Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity(); // TODO: 실제 Extrinsic
 
@@ -197,15 +199,18 @@ int main(int argc, char** argv) {
     grasp_lid(controller, nh, left_cam_pose, right_cam_pose, camera_extrinsic, left_quat_rpy, right_quat_rpy, pick_up_height);
 
     // closing pose
+
+    std::vector<double> left_new, right_new;
+    std::tie(left_new, right_new) = controller.get_bimanual_grasp_pose();
     Eigen::Matrix4d left_container_pose = Eigen::Matrix4d::Identity();
-    left_container_pose(0, 3) = 0.05;  // x
-    left_container_pose(1, 3) = 0.05;  // y
-    left_container_pose(2, 3) = 0.0;  // z  //TODO
+    left_container_pose(0, 3) = left_new[0];  // x
+    left_container_pose(1, 3) = left_new[1];  // y
+    left_container_pose(2, 3) = left_new[2];  // z  //TODO
 
     Eigen::Matrix4d right_container_pose = Eigen::Matrix4d::Identity();
-    right_container_pose(0, 3) = 0.05;  // x
-    right_container_pose(1, 3) = 0.05;  // y
-    right_container_pose(2, 3) = 0.0;  // z
+    right_container_pose(0, 3) = right_new[0];  // x
+    right_container_pose(1, 3) = right_new[1];  // y
+    right_container_pose(2, 3) = right_new[2];  // z
 
     double push_height = 0.15;
 

@@ -16,6 +16,10 @@ namespace arx::x7 {
     ee_pose_sub_left = nh.subscribe("/follow1_pos_back", 10, &X7StateInterface::eePoseCallbackLeft, this);
     joint_info_sub_right = nh.subscribe("/joint_information2", 10, &X7StateInterface::jointInfoCallbackRight, this);
     ee_pose_sub_right = nh.subscribe("/follow2_pos_back", 10, &X7StateInterface::eePoseCallbackRight, this);
+
+    // Service
+    single_service = nh.advertiseService("/send_single_pose", &X7StateInterface::singlePoseCallback, this);
+    bimanual_service = nh.advertiseService("/send_bimanual_pose", &X7StateInterface::bimanualPoseCallback, this);
     }
 
     void X7StateInterface::jointInfoCallbackLeft(const arm_control::JointInformation::ConstPtr& msg) {
@@ -102,7 +106,41 @@ namespace arx::x7 {
         rate.sleep();
       }
     }
+
+    // pose service callback
+    bool X7StateInterface::singlePoseCallback(arx_x7_controller::SinglePose::Request& req,
+                                              arx_x7_controller::SinglePose::Response& res) {
+        single_grasp_xyz = std::vector<double>(req.single_xyz.begin(), req.single_xyz.end());
+        single_grasp_is_left = req.is_left;
+        single_grasp_received = true;
+
+        ROS_INFO_STREAM("Received " << (req.is_left ? "LEFT" : "RIGHT") << " single grasp pose");
+        res.success = true;
+        return true;
     }
+
+    bool X7StateInterface::bimanualPoseCallback(arx_x7_controller::Pose3D::Request& req,
+                                                arx_x7_controller::Pose3D::Response& res) {
+        left_grasp_xyz = std::vector<double>(req.left_xyz.begin(), req.left_xyz.end());
+        right_grasp_xyz = std::vector<double>(req.right_xyz.begin(), req.right_xyz.end());;
+        bimanual_grasp_received  = true;
+        ROS_INFO("Received BIMANUAL grasp poses");
+        res.success = true;
+        return true;
+    }
+
+    //pose getter
+    std::pair<bool, std::vector<double>> X7StateInterface::get_single_grasp_pose() {
+        if (!single_grasp_received)
+            ROS_WARN("Single grasp pose not yet received.");
+        return {single_grasp_is_left, single_grasp_xyz};
+    }
+    std::pair<std::vector<double>, std::vector<double>> X7StateInterface::get_bimanual_grasp_pose() {
+        if (!bimanual_grasp_received)
+            ROS_WARN("Bimanual grasp pose not yet received.");
+        return {left_grasp_xyz, right_grasp_xyz};
+    }
+}// namespace arx::x7
 
 
 //int main(int argc, char** argv) {
