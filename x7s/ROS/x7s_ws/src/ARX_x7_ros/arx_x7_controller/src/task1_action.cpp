@@ -174,7 +174,7 @@ void stretch_cloth_force(X7StateInterface& controller, ros::NodeHandle& nh, doub
 
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-
+    }
 }
 
 void stretch_cloth_manual(X7StateInterface& controller, ros::NodeHandle& nh, double step_size = 0.08) {
