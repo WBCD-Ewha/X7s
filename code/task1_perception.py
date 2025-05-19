@@ -506,6 +506,17 @@ def task1_perception(sample_id,task_num, camera_name, debug=False):
         debug=debug)
 
     print(grasp_poses)
+    
+def main():
+    rospy.init_node("task1_perception")
+
+    left_pose, right_pose = estimate_lid_grasp_poses(pcd, hinge_offset = 0.06)
+    send_bimanual_pose_loop(left_pose, right_pose, num)
+
+
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == '__main__':

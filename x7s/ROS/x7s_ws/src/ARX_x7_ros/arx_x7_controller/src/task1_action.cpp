@@ -250,32 +250,7 @@ std::vector<double> left_joint = controller.get_latest_joint_info(true);
 int main(int argc, char** argv) {
     ros::init(argc, argv, "task1_action");
     ros::NodeHandle nh;
-
-    // 단일 controller 인스턴스로 양팔 제어
-    arx::x7::X7StateInterface controller(nh);
-   
-
-    // TODO: 실제 값으로 대체 (ros service 이용해서 perception node한테서 받기)
-    // Example pose from camera (homogeneous transform 4x4)
-    // 일단은 world frame 기준으로 아무 값 넣음
-    Eigen::Matrix4d left_cam_pose = Eigen::Matrix4d::Identity();
-    left_cam_pose(0, 3) = 0.05;  // x
-    left_cam_pose(1, 3) = 0.0;  // y
-    left_cam_pose(2, 3) = 0.10;  // z  //TODO
-
-    Eigen::Matrix4d right_cam_pose = Eigen::Matrix4d::Identity();
-    right_cam_pose(0, 3) = 0.05;  // x
-    right_cam_pose(1, 3) = 0.0;  // y
-    right_cam_pose(2, 3) = 0.10;  // z
-
-    Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity(); // TODO: 실제 Extrinsic
-
-    // Example rpy orientation (approach)
-    std::vector<double> left_quat_rpy = {1.5707963, 1.5707963, 0};
-    std::vector<double> right_quat_rpy = {-1.5707963, 1.5707963, 0};
-
-    double pick_up_height = 0.2;
-
+    
     // test
     //std::vector<double> test_pos_left = {-0.361, -1.15, -0.05, 0.0157, 0.471, -0.189, 1.0, 0.0};
     //std::vector<double> test_pos_right = {0.361, 1.15, -0.05, 0.0157, -0.471, 0.189, -1.0, 0.0};
@@ -288,7 +263,35 @@ int main(int argc, char** argv) {
     //std::vector<double> current_left_pose, current_right_pose;
     //get_current_poses(controller, current_left_pose, current_right_pose);
     //
+
+    // 단일 controller 인스턴스로 양팔 제어
+    arx::x7::X7StateInterface controller(nh);
     
+    for(int i=0; i<3 ; i++){
+
+    // Example pose from camera (homogeneous transform 4x4)
+
+    Eigen::Matrix4d left_cam_pose = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4d right_cam_pose = Eigen::Matrix4d::Identity();
+    
+    // 1. grasp pose
+    std::vector<double> left, right;
+    std::tie(left, right, num) = controller.get_pose_loop();
+    left_cam_pose(0, 3) = left[0];
+    left_cam_pose(1, 3) = left[1];
+    left_cam_pose(2, 3) = left[2];
+    right_cam_pose(0, 3) = right[0];
+    right_cam_pose(1, 3) = right[1];
+    right_cam_pose(2, 3) = right[2];
+
+    Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity(); // TODO: 실제 Extrinsic
+
+    // Example rpy orientation (approach)
+    std::vector<double> left_quat_rpy = {1.5707963, 1.5707963, 0};
+    std::vector<double> right_quat_rpy = {-1.5707963, 1.5707963, 0};
+
+    double pick_up_height = 0.2;
+
     
     grasp_cloth(controller, nh, left_cam_pose, right_cam_pose, camera_extrinsic, left_quat_rpy, right_quat_rpy, pick_up_height);
     stretch_cloth_manual(controller, nh, 0.08);  // TODO: stretch 값 정하기
@@ -297,6 +300,7 @@ int main(int argc, char** argv) {
     std::vector<double> right_fling_pose = {0.25, -0.10, 0.226, 0.0, 0.0, 0.0, 0.0};   // TODO: 적절히 조정
 
     //fling_cloth(controller, nh, left_fling_pose, right_fling_pose);
+    }
 
     return 0;
 }

@@ -18,6 +18,22 @@ def send_bimanual_pose(left_pose, right_pose):
             rospy.logwarn("Service call failed.")
     except rospy.ServiceException as e:
         rospy.logerr(f"Service call failed: {e}")
+        
+def send_bimanual_pose_loop(left_pose, right_pose, num):
+    rospy.wait_for_service('/send_pose_loop')
+    try:
+        service_proxy = rospy.ServiceProxy('/send_pose_loop', Pose_loop)
+        left_xyz = left_pose[:3, 3].tolist()
+        right_xyz = right_pose[:3, 3].tolist()
+        num = num
+        req = Pose_loopRequest(left_xyz=left_xyz, right_xyz=right_xyz, num=num)
+        resp = service_proxy(req)
+        if resp.success:
+            rospy.loginfo("Bimanual poses loop sent successfully.")
+        else:
+            rospy.logwarn("Service call failed.")
+    except rospy.ServiceException as e:
+        rospy.logerr(f"Service call failed: {e}")
 
 # task3_container_close
 def send_bimanual_close_pose(left_pose, right_pose):

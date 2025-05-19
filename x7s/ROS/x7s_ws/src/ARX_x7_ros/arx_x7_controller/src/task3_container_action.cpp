@@ -167,6 +167,29 @@ void close_container(X7StateInterface& controller, ros::NodeHandle& nh, const Ei
     lift_right.join();
 }
 
+
+bool X7StateInterface::bimanualPoseCallback(arx_x7_controller::Pose3D::Request& req,
+                                                arx_x7_controller::Pose3D::Response& res) {
+        left_grasp_xyz = std::vector<double>(req.left_xyz.begin(), req.left_xyz.end());
+        right_grasp_xyz = std::vector<double>(req.right_xyz.begin(), req.right_xyz.end());;
+        bimanual_grasp_received  = true;
+        ROS_INFO("Received BIMANUAL grasp poses");
+        res.success = true;
+        return true;
+}
+
+bool X7StateInterface::bimanualClosePoseCallback(arx_x7_controller::Pose3D::Request& req,
+                                                arx_x7_controller::Pose3D::Response& res) {
+        left_grasp_xyz = std::vector<double>(req.left_xyz.begin(), req.left_xyz.end());
+        right_grasp_xyz = std::vector<double>(req.right_xyz.begin(), req.right_xyz.end());;
+        bimanual_close_grasp_received  = true;
+        ROS_INFO("Received BIMANUAL grasp poses");
+        res.success = true;
+        return true;
+}
+    
+
+
 int main(int argc, char** argv) {
     ros::init(argc, argv, "task3_action");
     ros::NodeHandle nh;
