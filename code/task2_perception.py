@@ -3,7 +3,7 @@ from generate_pt import load_images, generate_point_cloud
 import open3d as o3d
 import cv2
 import numpy as np
-from ros_sender import send_bimanual_pose
+from ros_sender import send_bimanual_pose, is_action_fin
 
 from util import (
     transform_matrix, create_coordinate_frame, create_sphere, pca,
@@ -106,6 +106,9 @@ def main():
 
     left_pose, right_pose = estimate_lid_grasp_poses(pcd, hinge_offset = 0.06)
     send_bimanual_pose(left_pose, right_pose)
+
+    action_fin1 = is_action_fin(True)
+    print(f"task2: open containers action succeed: {action_fin1}")
 
 
 

@@ -23,6 +23,8 @@ namespace arx::x7 {
     bimanual_service = nh.advertiseService("/send_bimanual_pose", &X7StateInterface::bimanualPoseCallback, this);
     bimanual_close_service = nh.advertiseService("/send_bimanual_close_pose", &X7StateInterface::bimanualClosePoseCallback, this);
     pose_loop_service = nh.advertiseService("/send_pose_loop", &X7StateInterface::poseLoopCallback, this);
+    action_service = nh.advertiseService("/action_fin", &X7StateInterface::actionCallback, this);
+
     }
 
     void X7StateInterface::jointInfoCallbackLeft(const arm_control::JointInformation::ConstPtr& msg) {
@@ -162,6 +164,15 @@ namespace arx::x7 {
         return true;
     }
 
+      bool X7StateInterface::actionCallback(arx_x7_controller::ActionSuccess::Request& req, arx_x7_controller::ActionSuccess::Response& res){
+        perception = req.perception;
+        action_fin  = true;
+        ROS_INFO("perception is finished");
+        res.action = true;
+        return true;
+      }
+
+
     //pose getter
     std::pair<bool, std::vector<double>> X7StateInterface::get_single_grasp_pose() {
         if (!single_grasp_received)
@@ -183,10 +194,16 @@ namespace arx::x7 {
             ROS_WARN("Bimanual close grasp pose not yet received.");
         return {left_grasp_xyz, right_grasp_xyz};
     }
-    std::pair<std::vector<double>, std::vector<double>, int> X7StateInterface::get_pose_loop() {
+    std::tuple<std::vector<double>, std::vector<double>, int> X7StateInterface::get_pose_loop() {
         if (!bimanual_loop)
             ROS_WARN("Bimanual close grasp pose loop not yet received.");
         return {left_grasp_xyz, right_grasp_xyz, num};
+    }
+
+     bool X7StateInterface::is_action_fin(){
+        if (!action_fin)
+            ROS_WARN("perception is finished");
+        return perception;
     }
 }// namespace arx::x7
 

@@ -171,6 +171,9 @@ int main(int argc, char** argv) {
     // 7. processing
     grasp_plate(controller, nh, is_left, object_pose_cam, camera_extrinsic, grasp_quat_rpy);
 
+    // action fin
+    bool perception1 = controller.is_action_fin();
+
     // Goal pose
     std::pair<bool, std::vector<double>> result_new = controller.get_single_moved_grasp_pose();
     is_left = result_new.first;
@@ -182,6 +185,9 @@ int main(int argc, char** argv) {
     goal_pose_cam(2, 3) = grasp_xyz_new[2];  // z
 
     place_pizza(controller, nh, is_left, goal_pose_cam, camera_extrinsic, goal_quat_rpy, angle_rad);
+
+    // action fin
+    bool perception2 = controller.is_action_fin();
 
     return 0;
 }

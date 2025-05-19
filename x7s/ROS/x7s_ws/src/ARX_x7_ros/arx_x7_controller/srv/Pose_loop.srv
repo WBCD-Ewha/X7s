@@ -1,5 +1,5 @@
 float64[3] left_xyz
 float64[3] right_xyz
-int num
+int32 num
 ---
 bool success

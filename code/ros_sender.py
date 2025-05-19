@@ -1,6 +1,6 @@
 import rospy
-from arx_x7_controller.srv import Pose3D, Pose3DRequest
-from arx_x7_controller.srv import SinglePose, SinglePoseRequest
+from arx_x7_controller.srv import Pose3D, Pose3DRequest, Pose_loop, ActionSuccess
+from arx_x7_controller.srv import SinglePose, SinglePoseRequest, Pose_loopRequest, ActionSuccessRequest
 import numpy as np
 
 #bimanual
@@ -77,6 +77,20 @@ def send_moved_single_pose(single_pose, is_left):
             rospy.loginfo(f"{'LEFT' if is_left else 'RIGHT'} Grasp pose sent successfully.")
         else:
             rospy.logwarn("Service call failed.")
+    except rospy.ServiceException as e:
+        rospy.logerr(f"Service call failed: {e}")
+
+def is_action_fin(perception):
+    rospy.wait_for_service('/action_fin')
+    try:
+        service_proxy = rospy.ServiceProxy('/action_fin', ActionSuccess)
+        req = ActionSuccessRequest(perception=perception)
+        resp = service_proxy(req)
+        if resp.action:
+            rospy.loginfo(f"action is finished successfully.")
+        else:
+            rospy.logwarn("Service call failed.")
+        return resp.action
     except rospy.ServiceException as e:
         rospy.logerr(f"Service call failed: {e}")
 

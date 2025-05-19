@@ -33,6 +33,10 @@ from cloth_tools.annotation.grasp_annotation import grasp_hanging_cloth_pose
 
 from datetime import datetime
 
+import rospy
+from ros_sender import send_bimanual_pose, send_bimanual_close_pose, is_action_fin, send_bimanual_pose_loop
+
+
 MIN = -4
 MAX = 4
 
@@ -389,8 +393,8 @@ def get_grasp_pose(sample, processing_dir, method_type = 1, sharp_percent=0.8, t
             inside_grasps[i] = grasp_point + tuning_vector * tuning_scale
 
     # appraoch direction: up to down
-    approach = np.asarray([0, 0, -1])
-    return [grasp_hanging_cloth_pose(inside_grasps[0], approach), grasp_hanging_cloth_pose(inside_grasps[1], approach)]
+    approach = np.asarray([0, 0, 1])
+    return [grasp_hanging_cloth_pose(inside_grasps[0], approach, grasp_depth=0.05), grasp_hanging_cloth_pose(inside_grasps[1], approach, grasp_depth=0.05)]
 
 def cloth_bimanual_grasp(sample, sample_dir, rgb_image, rgb_image_path, depth_image_path, pointcloud, camera_intrinsic, method_type = 2, sharp_percent=0.8, tuning_scale=0.07, debug=False):
     '''
@@ -469,11 +473,12 @@ def cloth_bimanual_grasp(sample, sample_dir, rgb_image, rgb_image_path, depth_im
     x2 = pose2[0, 3]
 
     if x1 < x2:
-        left_pose = pose1
-        right_pose = pose2
+        left_pose = np.array([pose1[0], pose1[1], pose1[2]])
+        right_pose = np.array([pose2[0], pose2[1], pose2[2]])
     else:
-        left_pose = pose2
-        right_pose = pose1
+        left_pose = np.array([pose1[0], pose1[1], pose1[2]])
+        right_pose = np.array([pose2[0], pose2[1], pose2[2]])
+
     return [left_pose, right_pose]
 
 def task1_perception(sample_id,task_num, camera_name, debug=False):
@@ -506,18 +511,25 @@ def task1_perception(sample_id,task_num, camera_name, debug=False):
         debug=debug)
 
     print(grasp_poses)
+    return grasp_poses[0], grasp_poses[1]
     
 def main():
     rospy.init_node("task1_perception")
+    num = 0
 
-    left_pose, right_pose = estimate_lid_grasp_poses(pcd, hinge_offset = 0.06)
-    send_bimanual_pose_loop(left_pose, right_pose, num)
+    while num < 2:
+        left_pose, right_pose = task1_perception(0, 1, "camera_h", debug=False)
+        send_bimanual_pose_loop(left_pose, right_pose, num)
 
+        action_fin1 = is_action_fin(True)
+        print(f"task1: loop {num} succeed: {action_fin1}")
+        rospy.sleep(2.0)
+
+        if action_fin1:
+            num += 1
+        else:
+            print("Action failed. Retrying same step.")
 
 
 if __name__ == "__main__":
     main()
-
-
-if __name__ == '__main__':
-    task1_perception(4, 1, "camera_l", True)

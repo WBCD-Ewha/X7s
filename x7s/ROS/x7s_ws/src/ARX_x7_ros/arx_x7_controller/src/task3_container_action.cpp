@@ -221,6 +221,9 @@ int main(int argc, char** argv) {
 
     grasp_lid(controller, nh, left_cam_pose, right_cam_pose, camera_extrinsic, left_quat_rpy, right_quat_rpy, pick_up_height);
 
+        // action fin
+    bool perception1 = controller.is_action_fin();
+
     // closing pose
 
     std::vector<double> left_new, right_new;
@@ -238,6 +241,7 @@ int main(int argc, char** argv) {
     double push_height = 0.15;
 
     close_container(controller, nh, left_container_pose, right_container_pose, camera_extrinsic, left_quat_rpy, right_quat_rpy, push_height);
-
+        // action fin
+    bool perception2 = controller.is_action_fin();
     return 0;
 }

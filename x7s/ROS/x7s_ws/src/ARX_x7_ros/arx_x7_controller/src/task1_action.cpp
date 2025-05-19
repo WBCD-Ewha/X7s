@@ -267,39 +267,50 @@ int main(int argc, char** argv) {
     // 단일 controller 인스턴스로 양팔 제어
     arx::x7::X7StateInterface controller(nh);
     
-    for(int i=0; i<3 ; i++){
+    int num = 0;
+    while (ros::ok() && num < 3) {
+        ROS_INFO_STREAM("Starting loop iteration: " << num);
 
-    // Example pose from camera (homogeneous transform 4x4)
+        // Example pose from camera (homogeneous transform 4x4)
+        Eigen::Matrix4d left_cam_pose = Eigen::Matrix4d::Identity();
+        Eigen::Matrix4d right_cam_pose = Eigen::Matrix4d::Identity();
 
-    Eigen::Matrix4d left_cam_pose = Eigen::Matrix4d::Identity();
-    Eigen::Matrix4d right_cam_pose = Eigen::Matrix4d::Identity();
-    
-    // 1. grasp pose
-    std::vector<double> left, right;
-    std::tie(left, right, num) = controller.get_pose_loop();
-    left_cam_pose(0, 3) = left[0];
-    left_cam_pose(1, 3) = left[1];
-    left_cam_pose(2, 3) = left[2];
-    right_cam_pose(0, 3) = right[0];
-    right_cam_pose(1, 3) = right[1];
-    right_cam_pose(2, 3) = right[2];
+        std::vector<double> left, right;
+        int loop_num;
+        std::tie(left, right, loop_num) = controller.get_pose_loop();
+        left_cam_pose(0, 3) = left[0];
+        left_cam_pose(1, 3) = left[1];
+        left_cam_pose(2, 3) = left[2];
+        right_cam_pose(0, 3) = right[0];
+        right_cam_pose(1, 3) = right[1];
+        right_cam_pose(2, 3) = right[2];
 
-    Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity(); // TODO: 실제 Extrinsic
+        Eigen::Matrix4d camera_extrinsic = Eigen::Matrix4d::Identity(); // TODO: 실제 Extrinsic
 
-    // Example rpy orientation (approach)
-    std::vector<double> left_quat_rpy = {1.5707963, 1.5707963, 0};
-    std::vector<double> right_quat_rpy = {-1.5707963, 1.5707963, 0};
+        std::vector<double> left_quat_rpy = {1.5707963, 1.5707963, 0};
+        std::vector<double> right_quat_rpy = {-1.5707963, 1.5707963, 0};
+        double pick_up_height = 0.2;
 
-    double pick_up_height = 0.2;
+        grasp_cloth(controller, nh, left_cam_pose, right_cam_pose, camera_extrinsic, left_quat_rpy, right_quat_rpy, pick_up_height);
 
-    
-    grasp_cloth(controller, nh, left_cam_pose, right_cam_pose, camera_extrinsic, left_quat_rpy, right_quat_rpy, pick_up_height);
-    stretch_cloth_manual(controller, nh, 0.08);  // TODO: stretch 값 정하기
+        stretch_cloth_manual(controller, nh, 0.08);  // TODO: stretch 값 정하기
 
-    std::vector<double> left_fling_pose = {0.25, 0.10, 0.226, 0.0, 0.0, 0.0, 0.0};   // TODO: 적절히 조정
-    std::vector<double> right_fling_pose = {0.25, -0.10, 0.226, 0.0, 0.0, 0.0, 0.0};   // TODO: 적절히 조정
+        std::vector<double> left_fling_pose = {0.25, 0.10, 0.226, 0.0, 0.0, 0.0, 0.0};   // TODO: 적절히 조정
+        std::vector<double> right_fling_pose = {0.25, -0.10, 0.226, 0.0, 0.0, 0.0, 0.0};   // TODO: 적절히 조정
 
-    //fling_cloth(controller, nh, left_fling_pose, right_fling_pose);
+        fling_cloth(controller, nh, left_fling_pose, right_fling_pose);
+
+        // check if action was successful
+        bool success = controller.is_action_fin();
+
+        if (success) {
+            ROS_INFO_STREAM("Action loop " << num << " succeeded.");
+            num += 1;
+        } else {
+            ROS_WARN_STREAM("Action loop " << num << " failed. Retrying.");
+        }
+
+        ros::Duration(2.0).sleep();  // optional cooldown
     }
 
     return 0;

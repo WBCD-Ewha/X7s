@@ -19,6 +19,7 @@ add_service_files(
   Pose3D.srv
   SinglePose.srv
   Pose_loop.srv
+  ActionSuccess.srv
 )
 
 #add_message_files(

@@ -203,6 +203,8 @@ int main(int argc, char** argv) {
   // processing
   open_container(controller, nh, left_grasp_pose, right_grasp_pose, left_quat_rpy, right_quat_rpy, camera_extrinsic, angle_rad);
 
+  // action fin
+  bool perception1 = controller.is_action_fin();
 
   return 0;
 }
