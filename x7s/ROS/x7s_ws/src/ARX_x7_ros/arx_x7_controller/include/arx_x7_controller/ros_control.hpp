@@ -5,11 +5,13 @@
 #include "ros/ros.h"
 #include "arx_x7_controller/Pose3D.h"
 #include "arx_x7_controller/SinglePose.h"
+#include "arx_x7_controller/Pose_loop.h"
 #include <chrono>
 #include <thread>
 #include <arm_control/PosCmd.h>
 #include <arm_control/JointControl.h>
 #include <thread>
+#include <tuple>
 
 
 namespace arx::x7 {
@@ -57,7 +59,7 @@ public:
   std::pair<bool, std::vector<double>> get_single_moved_grasp_pose();
   std::pair<std::vector<double>, std::vector<double>> get_bimanual_grasp_pose();
   std::pair<std::vector<double>, std::vector<double>> get_bimanual_close_grasp_pose();
-  std::pair<std::vector<double>, std::vector<double>, int> get_pose_loop();
+  std::tuple<std::vector<double>, std::vector<double>, int> get_pose_loop();
 
 private:
   ros::Subscriber joint_info_sub_left;
